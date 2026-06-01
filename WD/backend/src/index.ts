@@ -332,7 +332,7 @@ function classifyNutritionalStatus(weightKg: number, heightCm: number, ageMonths
 
 // POST /api/predict - Submit baby measurements and calculate stunting using WHO Z-Score
 app.post("/api/predict", async ({ body, set }) => {
-  const { nama, umur, jenisKelamin, berat, tinggi, lingkarKepala, lingkarLengan } = body;
+  const { nama, umur, jenisKelamin, berat, tinggi, lingkarKepala, lingkarLengan, tipe } = body;
   
   // Validation: Check for positive numbers, but allow free inputs (e.g. 900 kg weight, 40 cm height)
   if (!nama || nama.trim() === "") {
@@ -405,6 +405,7 @@ app.post("/api/predict", async ({ body, set }) => {
     nutritionalStatus: nutStatus,
     nutritionalLabel: nutLabel,
     probability: parseFloat(probability.toFixed(3)),
+    tipe: tipe || 'mandiri',
     createdAt: new Date().toISOString()
   };
   
@@ -422,7 +423,8 @@ app.post("/api/predict", async ({ body, set }) => {
     berat: t.Numeric(),
     tinggi: t.Numeric(),
     lingkarKepala: t.Optional(t.Numeric()),
-    lingkarLengan: t.Optional(t.Numeric())
+    lingkarLengan: t.Optional(t.Numeric()),
+    tipe: t.Optional(t.String())
   })
 });
 

@@ -4,24 +4,57 @@ import { ResultView } from './ResultView';
 interface InputFormProps {
   onNavigate: (page: string, data?: any) => void;
   apiUrl: string;
+  initialData?: any;
 }
 
-export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl }) => {
+export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initialData }) => {
   const [loading, setLoading] = useState(false);
-  const [predictionResult, setPredictionResult] = useState<any>(null);
+  const [predictionResult, setPredictionResult] = useState<any>(initialData || null);
   
   // Form State
   const [formData, setFormData] = useState({
-    nama: '',
-    umur: '',
-    jenisKelamin: 'L' as 'L' | 'P',
-    berat: '',
-    tinggi: '',
-    lingkarKepala: '',
-    lingkarLengan: ''
+    nama: initialData?.nama || '',
+    umur: initialData?.umur?.toString() || '',
+    jenisKelamin: initialData?.jenisKelamin || 'L' as 'L' | 'P',
+    berat: initialData?.bbAkhir?.toString() || initialData?.berat?.toString() || '',
+    tinggi: initialData?.tbAkhir?.toString() || initialData?.tinggi?.toString() || '',
+    lingkarKepala: initialData?.lingkarKepala?.toString() || '',
+    lingkarLengan: initialData?.lingkarLengan?.toString() || ''
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Sync state if initialData changes (e.g. from Dashboard Detail)
+  React.useEffect(() => {
+    if (initialData) {
+      setPredictionResult(initialData);
+      setFormData({
+        nama: initialData.nama || '',
+        umur: initialData.umur?.toString() || '',
+        jenisKelamin: initialData.jenisKelamin || 'L',
+        berat: initialData.bbAkhir?.toString() || initialData.berat?.toString() || '',
+        tinggi: initialData.tbAkhir?.toString() || initialData.tinggi?.toString() || '',
+        lingkarKepala: initialData.lingkarKepala?.toString() || '',
+        lingkarLengan: initialData.lingkarLengan?.toString() || ''
+      });
+      // Scroll to result section after rendering
+      setTimeout(() => {
+        document.getElementById('prediction-result-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } else {
+      // Clear if navigating to empty input
+      setPredictionResult(null);
+      setFormData({
+        nama: '',
+        umur: '',
+        jenisKelamin: 'L',
+        berat: '',
+        tinggi: '',
+        lingkarKepala: '',
+        lingkarLengan: ''
+      });
+    }
+  }, [initialData]);
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -95,7 +128,8 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl }) => {
         berat: parseFloat(formData.berat),
         tinggi: parseFloat(formData.tinggi),
         lingkarKepala: formData.lingkarKepala ? parseFloat(formData.lingkarKepala) : undefined,
-        lingkarLengan: formData.lingkarLengan ? parseFloat(formData.lingkarLengan) : undefined
+        lingkarLengan: formData.lingkarLengan ? parseFloat(formData.lingkarLengan) : undefined,
+        tipe: 'mandiri'
       };
 
       const res = await fetch(`${apiUrl}/api/predict`, {
@@ -299,7 +333,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl }) => {
       {/* Main Single prediction Result output view */}
       {predictionResult && (
         <div id="prediction-result-section" style={{ marginTop: '3rem', paddingTop: '3rem', borderTop: '2px dashed var(--border-color)' }}>
-          <ResultView data={predictionResult} onNavigate={onNavigate} apiUrl={apiUrl} />
+          <ResultView data={predictionResult} onNavigate={onNavigate} apiUrl={apiUrl} hideCollective={true} />
         </div>
       )}
 

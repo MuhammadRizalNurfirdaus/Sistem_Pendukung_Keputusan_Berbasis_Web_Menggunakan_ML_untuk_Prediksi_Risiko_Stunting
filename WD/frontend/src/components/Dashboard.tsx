@@ -25,6 +25,7 @@ interface Prediction {
   nutritionalLabel?: string;
   status: number;
   probability: number;
+  tipe?: string;
   createdAt: string;
 }
 
@@ -185,7 +186,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNa
 
           {/* SVG Custom Premium Chart */}
           <div style={{ position: 'relative', width: '100%', height: '240px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', padding: '1rem 2rem 2.5rem 2.5rem' }}>
-            <svg width="100%" height="100%" viewBox="0 0 400 200" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
+            <svg width="100%" height="100%" viewBox="0 0 400 200" preserveAspectRatio="none" style={{ overflow: 'hidden' }}>
               {/* Grid Lines */}
               <line x1="0" y1="0" x2="400" y2="0" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="4" />
               <line x1="0" y1="50" x2="400" y2="50" stroke="var(--border-color)" strokeWidth="1" strokeDasharray="4" />
@@ -209,12 +210,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNa
               />
 
               {/* Baby Height Line */}
-              {/* Adjust Y dynamically based on heights scaled between 60cm (bottom) and 100cm (top) */}
-              {/* Map 60-100 to 200-0 on SVG height */}
+              {/* Adjust Y dynamically based on heights scaled dynamically */}
               {(() => {
+                const validHeights = babyHeights.filter(h => typeof h === 'number' && !isNaN(h));
+                const minH = Math.min(50, validHeights.length > 0 ? Math.min(...validHeights) - 5 : 50);
+                const maxH = Math.max(110, validHeights.length > 0 ? Math.max(...validHeights) + 5 : 110);
+
                 const scaleHeight = (h: number) => {
-                  const minH = 60;
-                  const maxH = 100;
                   return 200 - ((h - minH) / (maxH - minH)) * 200;
                 };
 
@@ -372,9 +374,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNa
                     <td style={{ padding: '14px 8px' }}>{(h.probability * 100).toFixed(0)}%</td>
                     <td style={{ padding: '14px 8px', textAlign: 'right' }}>
                       <button 
-                        onClick={() => onNavigate('predictions', h)}
-                        className="btn" 
-                        style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
+                        onClick={() => {
+                          if (h.tipe === 'kolektif') {
+                            onNavigate('predictions', h);
+                          } else {
+                            onNavigate('input', h);
+                          }
+                        }}
+                        className="btn btn-secondary" 
+                        style={{ padding: '6px 14px', fontSize: '0.8rem', fontWeight: 700 }}
                       >
                         Detail
                       </button>
