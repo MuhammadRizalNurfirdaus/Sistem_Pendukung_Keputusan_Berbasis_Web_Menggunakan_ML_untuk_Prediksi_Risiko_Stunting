@@ -119,7 +119,7 @@ function App() {
       case 'input':
         return <InputForm onNavigate={handleNavigate} apiUrl={API_URL} />;
       case 'predictions':
-        return <ResultView data={activeResult} onNavigate={handleNavigate} />;
+        return <ResultView data={activeResult} onNavigate={handleNavigate} apiUrl={API_URL} />;
       case 'education':
         return <Education apiUrl={API_URL} onNavigate={handleNavigate} />;
       default:
