@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
 
 interface Prediction {
   id: string;
@@ -31,345 +32,991 @@ interface Prediction {
 interface ResultViewProps {
   data: Prediction | null;
   onNavigate: (page: string, data?: any) => void;
+  apiUrl: string;
 }
 
-export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate }) => {
-  if (!data) {
+export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl }) => {
+  const [viewMode, setViewMode] = useState<'kolektif' | 'detail'>('kolektif');
+
+  // Tab 2: Kolektif (Excel) State
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [excelData, setExcelData] = useState<any[]>([]);
+  const [excelError, setExcelError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  
+  // Bulk processing state
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkResults, setBulkResults] = useState<any[]>([]);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  
+  // Selected child prediction for detail view
+  const [selectedChildData, setSelectedChildData] = useState<Prediction | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync mode with props (e.g. if arriving from individual form submit)
+  useEffect(() => {
+    if (data) {
+      setViewMode('detail');
+      setSelectedChildData(null); // Clear selected child data if prop changes
+    } else {
+      // Default to collective view if no prop data is available
+      setViewMode('kolektif');
+    }
+  }, [data]);
+
+  // Determine active data to show in detail panel
+  const activeData = selectedChildData || data;
+
+  // Excel Parsing Handlers
+  const parseExcelFile = (file: File) => {
+    setExcelFile(file);
+    setExcelError(null);
+    setExcelData([]);
+    setBulkResults([]);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const bstr = e.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const rawRows: any[] = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+        if (rawRows.length < 2) {
+          setExcelError('Berkas Excel tidak memiliki baris data yang cukup.');
+          return;
+        }
+
+        // Parse headers (row 0) and look for columns
+        const headers = rawRows[0].map((h: any) => String(h || '').trim().toLowerCase());
+
+        const findColIndex = (aliases: string[]) => {
+          return headers.findIndex((h: string) => aliases.some(alias => h.includes(alias)));
+        };
+
+        const idxNama = findColIndex(['nama', 'name', 'lengkap']);
+        const idxUmur = findColIndex(['umur', 'usia', 'bulan', 'age']);
+        const idxJK = findColIndex(['jenis kelamin', 'jk', 'kelamin', 'sex', 'gender']);
+        const idxBerat = findColIndex(['berat', 'bb', 'weight']);
+        const idxTinggi = findColIndex(['tinggi', 'tb', 'height', 'panjang']);
+        const idxLK = findColIndex(['lingkar kepala', 'lk', 'head']);
+        const idxLL = findColIndex(['lingkar lengan', 'lila', 'lengan', 'arm']);
+
+        if (idxNama === -1 || idxUmur === -1 || idxJK === -1 || idxBerat === -1 || idxTinggi === -1) {
+          setExcelError('Struktur kolom Excel tidak cocok. Pastikan Excel minimal memiliki kolom: Nama, Umur (Bulan), Jenis Kelamin (L/P), Berat Badan (kg), dan Tinggi Badan (cm).');
+          return;
+        }
+
+        const parsedRows: any[] = [];
+        for (let i = 1; i < rawRows.length; i++) {
+          const row = rawRows[i];
+          if (!row || row.length === 0 || !row[idxNama]) continue;
+
+          const jkRaw = String(row[idxJK] || '').trim().toUpperCase();
+          const jenisKelamin = (jkRaw.startsWith('L') || jkRaw.includes('LAKI') || jkRaw.includes('BOY')) ? 'L' : 'P';
+
+          parsedRows.push({
+            id: i,
+            nama: String(row[idxNama]).trim(),
+            umur: parseFloat(row[idxUmur]),
+            jenisKelamin,
+            berat: parseFloat(row[idxBerat]),
+            tinggi: parseFloat(row[idxTinggi]),
+            lingkarKepala: idxLK !== -1 && row[idxLK] ? parseFloat(row[idxLK]) : undefined,
+            lingkarLengan: idxLL !== -1 && row[idxLL] ? parseFloat(row[idxLL]) : undefined
+          });
+        }
+
+        if (parsedRows.length === 0) {
+          setExcelError('Tidak ada data balita yang valid ditemukan di dalam berkas Excel.');
+          return;
+        }
+
+        setExcelData(parsedRows);
+      } catch (err: any) {
+        setExcelError('Gagal memproses berkas Excel. Pastikan format berkas valid.');
+        console.error(err);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      parseExcelFile(file);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      parseExcelFile(file);
+    }
+  };
+
+  const handleBulkSubmit = async () => {
+    if (excelData.length === 0) return;
+
+    setBulkLoading(true);
+    setBulkError(null);
+    setBulkResults([]);
+
+    try {
+      const promises = excelData.map(async (item) => {
+        try {
+          const res = await fetch(`${apiUrl}/api/predict`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nama: item.nama,
+              umur: item.umur,
+              jenisKelamin: item.jenisKelamin,
+              berat: item.berat,
+              tinggi: item.tinggi,
+              lingkarKepala: item.lingkarKepala,
+              lingkarLengan: item.lingkarLengan
+            })
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            return {
+              ...item,
+              error: errData.error || `HTTP ${res.status}`
+            };
+          }
+
+          const result = await res.json();
+          return {
+            ...item,
+            success: true,
+            result
+          };
+        } catch (err: any) {
+          return {
+            ...item,
+            error: err.message || 'Gagal menghubungi server'
+          };
+        }
+      });
+
+      const results = await Promise.all(promises);
+      setBulkResults(results);
+
+      // Scroll to bulk results section
+      setTimeout(() => {
+        document.getElementById('bulk-results-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (err: any) {
+      setBulkError('Terjadi kesalahan sistem saat memproses data kolektif.');
+      console.error(err);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const exportToCSV = () => {
+    if (bulkResults.length === 0) return;
+    const headers = ['Nama Balita', 'Umur (Bulan)', 'Jenis Kelamin', 'Berat Badan (kg)', 'Tinggi Badan (cm)', 'Z-Score (HAZ)', 'Status Tinggi (WHO)', 'Status Gizi (WHO)', 'Rasio BB/TB'];
+    const rows = bulkResults.map((r: any) => {
+      if (r.error) {
+        return [r.nama, r.umur, r.jenisKelamin, r.berat, r.tinggi, 'Error', r.error, '', ''];
+      }
+      const res = r.result;
+      const genderLabel = res.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan';
+      const stuntingLabel = res.severity >= 2 ? 'Sangat Pendek' : res.status === 1 ? 'Pendek' : 'Normal';
+      return [
+        res.nama,
+        res.umur,
+        genderLabel,
+        res.bbAkhir,
+        res.tbAkhir,
+        res.zScore,
+        stuntingLabel,
+        res.nutritionalLabel,
+        res.rasioBBTBAkhir
+      ];
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" // Add BOM for Excel compatibility
+      + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(','))].join('\n');
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Laporan_Analisis_Posyandu_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Tab Switcher Styles
+  const activeTabStyle: React.CSSProperties = {
+    background: 'var(--accent-blue-bg)',
+    color: 'var(--accent-blue)',
+    border: '1px solid rgba(91, 164, 230, 0.25)',
+    padding: '10px 20px',
+    borderRadius: 'var(--radius-md)',
+    fontSize: '0.95rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    transition: 'all var(--transition-fast)'
+  };
+
+  const inactiveTabStyle: React.CSSProperties = {
+    background: 'none',
+    border: '1px solid transparent',
+    color: 'var(--text-secondary)',
+    padding: '10px 20px',
+    borderRadius: 'var(--radius-md)',
+    fontSize: '0.95rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all var(--transition-fast)'
+  };
+
+  // Render Single Detail Results View
+  const renderDetailView = () => {
+    if (!activeData) {
+      return (
+        <div className="fade-in" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>Belum Ada Hasil Terpilih</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Silakan unggah data kolektif atau pilih data anak dari daftar hasil terlebih dahulu.</p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+            <button className="btn btn-secondary" onClick={() => setViewMode('kolektif')}>
+              📊 Buka Unggah Kolektif
+            </button>
+            <button className="btn btn-primary" onClick={() => onNavigate('input')}>
+              Input Data Mandiri
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    const isStunting = activeData.status === 1;
+    const isSevere = (activeData.severity ?? 0) >= 2;
+    const pct = Math.round(activeData.probability * 100);
+    const circumference = 2 * Math.PI * 70;
+    const offset = circumference - (activeData.probability * circumference);
+    const zScore = activeData.zScore ?? 0;
+
+    // BMI calculation for Nutritional Status
+    const hM = activeData.tbAkhir / 100;
+    const bmi = hM > 0 ? (activeData.bbAkhir / (hM * hM)) : 0;
+    const nutStatus = activeData.nutritionalStatus ?? 0;
+    const nutLabel = activeData.nutritionalLabel ?? "Normal (Gizi Baik)";
+
+    // Dynamic styling based on nutritional status
+    let nutBadgeColor = 'var(--accent-green)';
+    let nutBgColor = 'var(--accent-green-bg)';
+    let nutBorderColor = 'var(--accent-green)';
+    let nutText = '';
+
+    if (nutStatus === 2) { // Obesitas
+      nutBadgeColor = 'var(--accent-coral)';
+      nutBgColor = 'var(--accent-coral-bg)';
+      nutBorderColor = 'var(--accent-coral)';
+      nutText = `Berdasarkan rasio berat terhadap tinggi badan (BMI: ${bmi.toFixed(1)}), berat badan anak (${activeData.bbAkhir} kg) tergolong sangat berlebih (obesitas) dibanding tinggi badannya yang ${activeData.tbAkhir} cm. Disarankan untuk membatasi asupan manis/berlemak dan mengonsultasikan menu gizi anak dengan dokter spesialis anak.`;
+    } else if (nutStatus === 1) { // Gizi Lebih
+      nutBadgeColor = '#e67e22';
+      nutBgColor = 'rgba(230, 126, 34, 0.1)';
+      nutBorderColor = '#e67e22';
+      nutText = `Berdasarkan rasio berat terhadap tinggi badan (BMI: ${bmi.toFixed(1)}), anak tergolong kelebihan berat badan (overweight). Jaga pola makan dengan nutrisi seimbang, perbanyak aktivitas fisik aktif, dan hindari camilan berkalori kosong.`;
+    } else if (nutStatus === -1) { // Gizi Kurang
+      nutBadgeColor = '#e67e22';
+      nutBgColor = 'rgba(230, 126, 34, 0.1)';
+      nutBorderColor = '#e67e22';
+      nutText = `Berdasarkan rasio berat terhadap tinggi badan (BMI: ${bmi.toFixed(1)}), anak menunjukkan indikasi gizi kurang (wasted). Tambahkan asupan kalori padat gizi, utamakan protein hewani berkadar lemak sehat (seperti ikan kembung, telur, ayam), dan pantau kenaikan berat badannya setiap bulan.`;
+    } else if (nutStatus === -2) { // Gizi Buruk
+      nutBadgeColor = 'var(--accent-coral)';
+      nutBgColor = 'var(--accent-coral-bg)';
+      nutBorderColor = 'var(--accent-coral)';
+      nutText = `Perhatian serius! Berdasarkan rasio berat terhadap tinggi badan (BMI: ${bmi.toFixed(1)}), anak terindikasi mengalami gizi buruk (severely wasted). Segera bawa anak ke fasilitas pelayanan kesehatan terdekat (Puskesmas/Rumah Sakit) untuk mendapatkan penanganan medis dan formula gizi terapeutik.`;
+    } else { // Normal (Gizi Baik)
+      nutBadgeColor = 'var(--accent-green)';
+      nutBgColor = 'var(--accent-green-bg)';
+      nutBorderColor = 'var(--accent-green)';
+      nutText = `Sangat baik! Rasio berat terhadap tinggi badan anak berada dalam proporsi yang ideal dan sehat (BMI: ${bmi.toFixed(1)}). Pertahankan pemberian makanan bergizi seimbang yang kaya akan protein hewani.`;
+    }
+
     return (
-      <div className="fade-in" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem' }}>Belum Ada Hasil</h2>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Silakan input data balita terlebih dahulu.</p>
-        <button className="btn btn-primary" onClick={() => onNavigate('input')}>Input Data Balita</button>
+      <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        {/* Back Link to collective table if there is bulk results */}
+        {(bulkResults.length > 0 || selectedChildData) && (
+          <div>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={() => {
+                setViewMode('kolektif');
+                setSelectedChildData(null);
+                setTimeout(() => {
+                  document.getElementById('bulk-results-section')?.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+            >
+              ← Kembali ke Hasil Kolektif / Impor
+            </button>
+          </div>
+        )}
+
+        {/* Page Header */}
+        <div>
+          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.025em' }}>Hasil Analisis Stunting & Gizi</h1>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+            Hasil deteksi risiko stunting dan gizi untuk <strong>{activeData.nama}</strong>, usia {activeData.umur} bulan.
+          </p>
+        </div>
+
+        {/* Main Result Card - Stunting */}
+        <div className="glass-panel" style={{
+          padding: '2.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '3rem',
+          flexWrap: 'wrap',
+          borderLeft: `6px solid ${isStunting ? 'var(--accent-coral)' : 'var(--accent-green)'}`
+        }}>
+          {/* Donut Chart */}
+          <div style={{ position: 'relative', width: '180px', height: '180px', flexShrink: 0 }}>
+            <svg width="180" height="180" viewBox="0 0 180 180">
+              {/* Background circle */}
+              <circle cx="90" cy="90" r="70" fill="none" stroke="var(--bg-primary)" strokeWidth="14" />
+              {/* Animated progress circle */}
+              <circle
+                cx="90" cy="90" r="70"
+                fill="none"
+                stroke={isStunting ? 'var(--accent-coral)' : 'var(--accent-green)'}
+                strokeWidth="14"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={offset}
+                transform="rotate(-90 90 90)"
+                style={{ transition: 'stroke-dashoffset 1.2s ease-out' }}
+              />
+            </svg>
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '2.5rem', fontWeight: 800, color: isStunting ? 'var(--accent-coral)' : 'var(--accent-green)' }}>
+                {pct}%
+              </div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Probabilitas</div>
+            </div>
+          </div>
+
+          {/* Status Info */}
+          <div style={{ flex: 1, minWidth: '240px' }}>
+            <div style={{
+              display: 'inline-flex',
+              padding: '8px 18px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '1.1rem',
+              fontWeight: 800,
+              background: isStunting ? 'var(--accent-coral-bg)' : 'var(--accent-green-bg)',
+              color: isStunting ? 'var(--accent-coral)' : 'var(--accent-green)',
+              marginBottom: '1rem'
+            }}>
+              {isSevere ? '🚨 SANGAT PENDEK (SEVERELY STUNTED)' : isStunting ? '⚠️ PENDEK (STUNTED)' : '✅ TINGGI NORMAL (SEHAT)'}
+            </div>
+
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.95rem' }}>
+              {isSevere ? (
+                <>Berdasarkan perhitungan <strong>Z-Score WHO</strong>, tinggi badan <strong>{activeData.nama}</strong> berada <strong>di bawah -3 SD</strong> (Z-Score: {zScore}). Anak tergolong <strong>sangat pendek (severely stunted)</strong>. Segera konsultasikan ke dokter anak atau puskesmas terdekat untuk penanganan gizi intensif.</>
+              ) : isStunting ? (
+                <>Berdasarkan perhitungan <strong>Z-Score WHO</strong>, tinggi badan <strong>{activeData.nama}</strong> berada <strong>di bawah -2 SD</strong> (Z-Score: {zScore}). Anak tergolong <strong>pendek (stunted)</strong>. Tingkatkan asupan protein hewani dan konsultasikan ke petugas Posyandu atau dokter anak terdekat.</>
+              ) : (
+                <>Kabar baik! Berdasarkan perhitungan <strong>Z-Score WHO</strong> (Z-Score: {zScore}), pertumbuhan <strong>{activeData.nama}</strong> berada dalam kurva <strong>normal WHO</strong> (≥ -2 SD). Terus pantau dan pertahankan pola makan bergizi seimbang.</>
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* Main Result Card - Nutritional Status */}
+        <div className="glass-panel" style={{
+          padding: '2.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '3rem',
+          flexWrap: 'wrap',
+          borderLeft: `6px solid ${nutBorderColor}`
+        }}>
+          {/* Indeks Massa Tubuh Representation */}
+          <div style={{
+            position: 'relative',
+            width: '180px',
+            height: '180px',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--bg-primary)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-color)',
+            flexDirection: 'column'
+          }}>
+            <span style={{ fontSize: '3rem' }}>
+              {nutStatus === 2 ? '⚖️' : nutStatus === 1 ? '🍎' : nutStatus === 0 ? '🥗' : nutStatus === -1 ? '🍲' : '🚨'}
+            </span>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '8px', color: 'var(--text-primary)' }}>
+              BMI: {bmi.toFixed(1)}
+            </div>
+            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>Indeks Massa Tubuh</div>
+          </div>
+
+          {/* Status Info */}
+          <div style={{ flex: 1, minWidth: '240px' }}>
+            <div style={{
+              display: 'inline-flex',
+              padding: '8px 18px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '1.1rem',
+              fontWeight: 800,
+              background: nutBgColor,
+              color: nutBadgeColor,
+              marginBottom: '1rem',
+              textTransform: 'uppercase'
+            }}>
+              Status Gizi: {nutLabel}
+            </div>
+
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.95rem' }}>
+              {nutText}
+            </p>
+          </div>
+        </div>
+
+        {/* Detail Cards Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
+          <DetailCard label="Nama Balita" value={activeData.nama} icon="👶" />
+          <DetailCard label="Umur" value={`${activeData.umur} Bulan`} icon="📅" />
+          <DetailCard label="Jenis Kelamin" value={activeData.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'} icon={activeData.jenisKelamin === 'L' ? '👦' : '👧'} />
+        </div>
+
+        {/* Measurement Table */}
+        <div className="glass-panel" style={{ padding: '2rem' }}>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem' }}>Detail Pengukuran Saat Ini</h3>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
+                  <th style={thStyle}>Parameter</th>
+                  <th style={thStyle}>Nilai Pengukuran</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={trStyle}>
+                  <td style={tdStyle}><strong>Berat Badan</strong></td>
+                  <td style={tdStyle}>{activeData.bbAkhir} kg</td>
+                </tr>
+                <tr style={trStyle}>
+                  <td style={tdStyle}><strong>Tinggi Badan</strong></td>
+                  <td style={tdStyle}>{activeData.tbAkhir} cm</td>
+                </tr>
+                {activeData.lingkarKepala ? (
+                  <tr style={trStyle}>
+                    <td style={tdStyle}><strong>Lingkar Kepala</strong></td>
+                    <td style={tdStyle}>{activeData.lingkarKepala} cm</td>
+                  </tr>
+                ) : null}
+                {activeData.lingkarLengan ? (
+                  <tr style={trStyle}>
+                    <td style={tdStyle}><strong>Lingkar Lengan</strong></td>
+                    <td style={tdStyle}>{activeData.lingkarLengan} cm</td>
+                  </tr>
+                ) : null}
+                <tr style={trStyle}>
+                  <td style={tdStyle}><strong>Rasio BB/TB</strong></td>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>{activeData.rasioBBTBAkhir}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* WHO Z-Score Analysis Card */}
+        {activeData.zScore !== undefined && (
+          <div className="glass-panel" style={{ padding: '2rem' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              Analisis Z-Score WHO (Height-for-Age)
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Z-Score (HAZ)</div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: isStunting ? 'var(--accent-coral)' : 'var(--accent-green)' }}>{zScore}</div>
+              </div>
+              <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Median WHO</div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{activeData.medianWHO} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cm</span></div>
+              </div>
+              <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Batas -2 SD</div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent-coral)' }}>{activeData.minus2SD} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cm</span></div>
+              </div>
+              <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Batas -3 SD</div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#c62828' }}>{activeData.minus3SD} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cm</span></div>
+              </div>
+            </div>
+
+            {/* Z-Score Visual Bar */}
+            <div style={{ position: 'relative', width: '100%', height: '40px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: '1rem' }}>
+              {/* Green zone (normal: >= -2) */}
+              <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '40%', background: 'rgba(118, 200, 147, 0.15)' }} />
+              {/* Yellow zone (stunted: -3 to -2) */}
+              <div style={{ position: 'absolute', right: '40%', top: 0, bottom: 0, width: '20%', background: 'rgba(255, 183, 77, 0.15)' }} />
+              {/* Red zone (severely stunted: < -3) */}
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '40%', background: 'rgba(231, 111, 81, 0.10)' }} />
+              {/* Z-Score marker — map z from -5 to +3 onto 0% to 100% */}
+              {(() => {
+                const markerPct = Math.max(0, Math.min(100, ((zScore + 5) / 8) * 100));
+                return (
+                  <div style={{
+                    position: 'absolute',
+                    left: `${markerPct}%`,
+                    top: '4px',
+                    bottom: '4px',
+                    width: '4px',
+                    background: isStunting ? 'var(--accent-coral)' : 'var(--accent-green)',
+                    borderRadius: '2px',
+                    boxShadow: `0 0 8px ${isStunting ? 'var(--accent-coral)' : 'var(--accent-green)'}`,
+                    transform: 'translateX(-50%)'
+                  }} />
+                );
+              })()}
+              {/* -3SD marker */}
+              <div style={{ position: 'absolute', left: '25%', top: 0, bottom: 0, width: '1px', background: 'var(--text-muted)', opacity: 0.3 }} />
+              {/* -2SD marker */}
+              <div style={{ position: 'absolute', left: '37.5%', top: 0, bottom: 0, width: '1px', background: 'var(--text-muted)', opacity: 0.3 }} />
+              {/* 0 (median) marker */}
+              <div style={{ position: 'absolute', left: '62.5%', top: 0, bottom: 0, width: '1px', background: 'var(--text-muted)', opacity: 0.3 }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              <span>-5 SD</span>
+              <span>-3 SD</span>
+              <span>-2 SD</span>
+              <span>Median</span>
+              <span>+3 SD</span>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              padding: '1rem 1.25rem',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--accent-blue-bg)',
+              border: '1px solid rgba(91, 164, 230, 0.12)',
+              marginTop: '1.25rem'
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '2px' }}>
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                <strong style={{ color: 'var(--accent-blue)' }}>Rumus WHO:</strong> Z-Score dihitung dengan metode <strong>LMS</strong> (Lambda-Mu-Sigma) berdasarkan data <strong>WHO Multicentre Growth Reference Study (MGRS)</strong>. Klasifikasi: <strong>Normal</strong> (HAZ ≥ -2 SD), <strong>Pendek/Stunted</strong> (HAZ {'<'} -2 SD), <strong>Sangat Pendek/Severely Stunted</strong> (HAZ {'<'} -3 SD).
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <button className="btn btn-secondary" onClick={() => onNavigate('dashboard')}>
+            ← Kembali ke Dashboard
+          </button>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button className="btn btn-outline" onClick={() => onNavigate('education')}>
+              📚 Tips Nutrisi
+            </button>
+            <button className="btn btn-primary" onClick={() => onNavigate('input')}>
+              + Periksa Balita Lain
+            </button>
+          </div>
+        </div>
       </div>
     );
-  }
+  };
 
-  const isStunting = data.status === 1;
-  const isSevere = (data.severity ?? 0) >= 2;
-  const pct = Math.round(data.probability * 100);
-  const circumference = 2 * Math.PI * 70;
-  const offset = circumference - (data.probability * circumference);
-  const zScore = data.zScore ?? 0;
+  // Render Collective Excel Upload View
+  const renderCollectiveView = () => {
+    return (
+      <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        
+        {/* Banner: Download Template */}
+        <div className="glass-panel" style={{ 
+          padding: '2rem', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between', 
+          flexWrap: 'wrap', 
+          gap: '1.5rem', 
+          background: 'linear-gradient(135deg, var(--bg-secondary), rgba(91,164,230,0.05))' 
+        }}>
+          <div style={{ flex: 1, minWidth: '280px' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.5rem' }}>
+              📂 Unduh Template Excel Resmi
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>
+              Gunakan template resmi Posyandu ini agar nama-nama kolom cocok dan dapat diproses otomatis oleh sistem kecerdasan buatan.
+            </p>
+          </div>
+          <a 
+            href="/template_pengisian_dataset_posyandu.xlsx" 
+            download="template_pengisian_dataset_posyandu.xlsx"
+            className="btn btn-outline"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-primary)', fontWeight: 700, padding: '12px 20px' }}
+          >
+            📥 Unduh Template Posyandu
+          </a>
+        </div>
 
-  // BMI calculation for Nutritional Status
-  const hM = data.tbAkhir / 100;
-  const bmi = hM > 0 ? (data.bbAkhir / (hM * hM)) : 0;
-  const nutStatus = data.nutritionalStatus ?? 0;
-  const nutLabel = data.nutritionalLabel ?? "Normal (Gizi Baik)";
+        {/* Drag & Drop Zone */}
+        <div 
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            padding: '3.5rem 2rem',
+            borderRadius: 'var(--radius-lg)',
+            border: `2px dashed ${isDragOver ? 'var(--accent-blue)' : 'var(--border-color)'}`,
+            background: isDragOver ? 'var(--accent-blue-bg)' : 'var(--bg-secondary)',
+            textAlign: 'center',
+            cursor: 'pointer',
+            transition: 'all var(--transition-fast)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '1.25rem'
+          }}
+        >
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            style={{ display: 'none' }} 
+            accept=".xlsx, .xls"
+            onChange={handleFileChange}
+          />
+          <span style={{ fontSize: '3.5rem' }}>📊</span>
+          <div>
+            <h4 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+              {excelFile ? excelFile.name : 'Tarik & Lepas Berkas Excel di Sini'}
+            </h4>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              {excelFile ? `${(excelFile.size / 1024).toFixed(1)} KB` : 'Atau klik untuk memilih berkas (.xlsx, .xls) dari perangkat Anda'}
+            </p>
+          </div>
+        </div>
 
-  // Dynamic styling based on nutritional status
-  let nutBadgeColor = 'var(--accent-green)';
-  let nutBgColor = 'var(--accent-green-bg)';
-  let nutBorderColor = 'var(--accent-green)';
-  let nutText = '';
+        {/* Excel Parsing Errors */}
+        {excelError && (
+          <div style={{
+            padding: '1rem',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--accent-coral-bg)',
+            border: '1px solid rgba(231, 111, 81, 0.15)',
+            color: 'var(--accent-coral)',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span>⚠️</span> {excelError}
+          </div>
+        )}
 
-  if (nutStatus === 2) { // Obesitas
-    nutBadgeColor = 'var(--accent-coral)';
-    nutBgColor = 'var(--accent-coral-bg)';
-    nutBorderColor = 'var(--accent-coral)';
-    nutText = `Berdasarkan rasio berat terhadap tinggi badan (BMI: ${bmi.toFixed(1)}), berat badan anak (${data.bbAkhir} kg) tergolong sangat berlebih (obesitas) dibanding tinggi badannya yang ${data.tbAkhir} cm. Disarankan untuk membatasi asupan manis/berlemak dan mengonsultasikan menu gizi anak dengan dokter spesialis anak.`;
-  } else if (nutStatus === 1) { // Gizi Lebih
-    nutBadgeColor = '#e67e22';
-    nutBgColor = 'rgba(230, 126, 34, 0.1)';
-    nutBorderColor = '#e67e22';
-    nutText = `Berdasarkan rasio berat terhadap tinggi badan (BMI: ${bmi.toFixed(1)}), anak tergolong kelebihan berat badan (overweight). Jaga pola makan dengan nutrisi seimbang, perbanyak aktivitas fisik aktif, dan hindari camilan berkalori kosong.`;
-  } else if (nutStatus === -1) { // Gizi Kurang
-    nutBadgeColor = '#e67e22';
-    nutBgColor = 'rgba(230, 126, 34, 0.1)';
-    nutBorderColor = '#e67e22';
-    nutText = `Berdasarkan rasio berat terhadap tinggi badan (BMI: ${bmi.toFixed(1)}), anak menunjukkan indikasi gizi kurang (wasted). Tambahkan asupan kalori padat gizi, utamakan protein hewani berkadar lemak sehat (seperti ikan kembung, telur, ayam), dan pantau kenaikan berat badannya setiap bulan.`;
-  } else if (nutStatus === -2) { // Gizi Buruk
-    nutBadgeColor = 'var(--accent-coral)';
-    nutBgColor = 'var(--accent-coral-bg)';
-    nutBorderColor = 'var(--accent-coral)';
-    nutText = `Perhatian serius! Berdasarkan rasio berat terhadap tinggi badan (BMI: ${bmi.toFixed(1)}), anak terindikasi mengalami gizi buruk (severely wasted). Segera bawa anak ke fasilitas pelayanan kesehatan terdekat (Puskesmas/Rumah Sakit) untuk mendapatkan penanganan medis dan formula gizi terapeutik.`;
-  } else { // Normal (Gizi Baik)
-    nutBadgeColor = 'var(--accent-green)';
-    nutBgColor = 'var(--accent-green-bg)';
-    nutBorderColor = 'var(--accent-green)';
-    nutText = `Sangat baik! Rasio berat terhadap tinggi badan anak berada dalam proporsi yang ideal dan sehat (BMI: ${bmi.toFixed(1)}). Pertahankan pemberian makanan bergizi seimbang yang kaya akan protein hewani.`;
-  }
+        {/* Preview Table */}
+        {excelData.length > 0 && bulkResults.length === 0 && (
+          <div className="glass-panel" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Pratinjau Data Impor ({excelData.length} Balita)</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '2px' }}>Silakan periksa kembali kecocokan data sebelum menganalisis.</p>
+              </div>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                onClick={handleBulkSubmit}
+                disabled={bulkLoading}
+                style={{ minWidth: '160px' }}
+              >
+                {bulkLoading ? 'Memproses...' : '🚀 Mulai Analisis Kolektif'}
+              </button>
+            </div>
+
+            <div style={{ overflowX: 'auto', maxHeight: '350px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border-color)', position: 'sticky', top: 0, background: 'var(--bg-secondary)', zIndex: 1 }}>
+                    <th style={{ padding: '10px 8px' }}>Nama</th>
+                    <th style={{ padding: '10px 8px' }}>JK</th>
+                    <th style={{ padding: '10px 8px' }}>Umur</th>
+                    <th style={{ padding: '10px 8px' }}>Berat (kg)</th>
+                    <th style={{ padding: '10px 8px' }}>Tinggi (cm)</th>
+                    <th style={{ padding: '10px 8px' }}>LK (cm)</th>
+                    <th style={{ padding: '10px 8px' }}>LiLA (cm)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {excelData.map((row) => (
+                    <tr key={row.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '10px 8px', fontWeight: 600 }}>{row.nama}</td>
+                      <td style={{ padding: '10px 8px' }}>{row.jenisKelamin === 'L' ? 'L' : 'P'}</td>
+                      <td style={{ padding: '10px 8px' }}>{row.umur} Bln</td>
+                      <td style={{ padding: '10px 8px' }}>{row.berat}</td>
+                      <td style={{ padding: '10px 8px' }}>{row.tinggi}</td>
+                      <td style={{ padding: '10px 8px', color: row.lingkarKepala ? 'inherit' : 'var(--text-muted)' }}>
+                        {row.lingkarKepala ?? '-'}
+                      </td>
+                      <td style={{ padding: '10px 8px', color: row.lingkarLengan ? 'inherit' : 'var(--text-muted)' }}>
+                        {row.lingkarLengan ?? '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk Processing Progress Indicator */}
+        {bulkLoading && (
+          <div className="glass-panel" style={{ padding: '2.5rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="3" style={{ animation: 'spin 1s linear infinite' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            <div>
+              <h4 style={{ fontWeight: 700, fontSize: '1.1rem' }}>Menganalisis Data Balita secara Kolektif...</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>Sistem sedang menghitung Z-Score dan status gizi WHO untuk {excelData.length} data.</p>
+            </div>
+          </div>
+        )}
+
+        {bulkError && (
+          <div style={{
+            padding: '1rem',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--accent-coral-bg)',
+            border: '1px solid rgba(231, 111, 81, 0.15)',
+            color: 'var(--accent-coral)',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span>⚠️</span> {bulkError}
+          </div>
+        )}
+
+        {/* Collective Report / Bulk Results */}
+        {bulkResults.length > 0 && (
+          <div id="bulk-results-section" className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', borderLeft: '6px solid var(--accent-blue)' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.3rem', fontWeight: 800 }}>📊 Laporan Hasil Deteksi Kolektif</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Analisis stunting dan status gizi balita Posyandu selesai dihitung.</p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button type="button" className="btn btn-outline" onClick={exportToCSV} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+                  📥 Ekspor ke CSV (.csv)
+                </button>
+                <button type="button" className="btn btn-primary" onClick={() => { setExcelFile(null); setExcelData([]); setBulkResults([]); }}>
+                  Periksa Berkas Lain
+                </button>
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
+                    <th style={{ padding: '12px 8px' }}>Nama</th>
+                    <th style={{ padding: '12px 8px' }}>Umur</th>
+                    <th style={{ padding: '12px 8px' }}>JK</th>
+                    <th style={{ padding: '12px 8px' }}>BB/TB</th>
+                    <th style={{ padding: '12px 8px' }}>Z-Score (HAZ)</th>
+                    <th style={{ padding: '12px 8px' }}>Status Tinggi (WHO)</th>
+                    <th style={{ padding: '12px 8px' }}>Status Gizi (WHO)</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'right' }}>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkResults.map((row) => {
+                    if (row.error) {
+                      return (
+                        <tr key={row.id} style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(231,111,81,0.05)' }}>
+                          <td style={{ padding: '12px 8px', fontWeight: 600 }}>{row.nama}</td>
+                          <td colSpan={6} style={{ padding: '12px 8px', color: 'var(--accent-coral)', fontWeight: 600 }}>
+                            ⚠️ Gagal diproses: {row.error}
+                          </td>
+                          <td style={{ padding: '12px 8px' }} />
+                        </tr>
+                      );
+                    }
+
+                    const res = row.result;
+                    const isStunt = res.status === 1;
+                    const isSev = res.severity >= 2;
+                    const nutStat = res.nutritionalStatus;
+
+                    // Colors for statuses
+                    const stuntBadgeStyle = {
+                      display: 'inline-flex',
+                      padding: '4px 8px',
+                      borderRadius: 'var(--radius-full)',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background: isStunt ? 'var(--accent-coral-bg)' : 'var(--accent-green-bg)',
+                      color: isStunt ? 'var(--accent-coral)' : 'var(--accent-green)'
+                    };
+
+                    const nutBadgeStyle = {
+                      display: 'inline-flex',
+                      padding: '4px 8px',
+                      borderRadius: 'var(--radius-full)',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background: (nutStat === 2 || nutStat === -2) ? 'var(--accent-coral-bg)' : (nutStat === 1 || nutStat === -1) ? 'rgba(230, 126, 34, 0.1)' : 'var(--accent-green-bg)',
+                      color: (nutStat === 2 || nutStat === -2) ? 'var(--accent-coral)' : (nutStat === 1 || nutStat === -1) ? '#e67e22' : 'var(--accent-green)'
+                    };
+
+                    return (
+                      <tr key={row.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '12px 8px', fontWeight: 600 }}>{res.nama}</td>
+                        <td style={{ padding: '12px 8px' }}>{res.umur} Bulan</td>
+                        <td style={{ padding: '12px 8px' }}>{res.jenisKelamin}</td>
+                        <td style={{ padding: '12px 8px' }}>{res.bbAkhir}kg / {res.tbAkhir}cm</td>
+                        <td style={{ padding: '12px 8px', fontWeight: 700, color: isStunt ? 'var(--accent-coral)' : 'var(--accent-green)' }}>
+                          {res.zScore}
+                        </td>
+                        <td style={{ padding: '12px 8px' }}>
+                          <span style={stuntBadgeStyle}>
+                            {isSev ? 'Sangat Pendek' : isStunt ? 'Pendek' : 'Normal'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 8px' }}>
+                          <span style={nutBadgeStyle}>
+                            {res.nutritionalLabel}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => {
+                              setSelectedChildData(res);
+                              setViewMode('detail');
+                              setTimeout(() => {
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }, 100);
+                            }}
+                            style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontWeight: 700 }}
+                          >
+                            Detail
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        )}
+
+      </div>
+    );
+  };
 
   return (
     <div className="fade-in" style={{ maxWidth: '860px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      {/* Page Header */}
-      <div>
-        <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.025em' }}>Hasil Analisis Stunting & Gizi</h1>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-          Hasil deteksi risiko stunting dan gizi untuk <strong>{data.nama}</strong>, usia {data.umur} bulan.
-        </p>
-      </div>
-
-      {/* Main Result Card - Stunting */}
-      <div className="glass-panel" style={{
-        padding: '2.5rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '3rem',
-        flexWrap: 'wrap',
-        borderLeft: `6px solid ${isStunting ? 'var(--accent-coral)' : 'var(--accent-green)'}`
-      }}>
-        {/* Donut Chart */}
-        <div style={{ position: 'relative', width: '180px', height: '180px', flexShrink: 0 }}>
-          <svg width="180" height="180" viewBox="0 0 180 180">
-            {/* Background circle */}
-            <circle cx="90" cy="90" r="70" fill="none" stroke="var(--bg-primary)" strokeWidth="14" />
-            {/* Animated progress circle */}
-            <circle
-              cx="90" cy="90" r="70"
-              fill="none"
-              stroke={isStunting ? 'var(--accent-coral)' : 'var(--accent-green)'}
-              strokeWidth="14"
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={offset}
-              transform="rotate(-90 90 90)"
-              style={{ transition: 'stroke-dashoffset 1.2s ease-out' }}
-            />
-          </svg>
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '2.5rem', fontWeight: 800, color: isStunting ? 'var(--accent-coral)' : 'var(--accent-green)' }}>
-              {pct}%
-            </div>
-            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Probabilitas</div>
-          </div>
-        </div>
-
-        {/* Status Info */}
-        <div style={{ flex: 1, minWidth: '240px' }}>
-          <div style={{
-            display: 'inline-flex',
-            padding: '8px 18px',
-            borderRadius: 'var(--radius-full)',
-            fontSize: '1.1rem',
-            fontWeight: 800,
-            background: isStunting ? 'var(--accent-coral-bg)' : 'var(--accent-green-bg)',
-            color: isStunting ? 'var(--accent-coral)' : 'var(--accent-green)',
-            marginBottom: '1rem'
-          }}>
-            {isSevere ? '🚨 SANGAT PENDEK (SEVERELY STUNTED)' : isStunting ? '⚠️ PENDEK (STUNTED)' : '✅ TINGGI NORMAL (SEHAT)'}
-          </div>
-
-          <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.95rem' }}>
-            {isSevere ? (
-              <>Berdasarkan perhitungan <strong>Z-Score WHO</strong>, tinggi badan <strong>{data.nama}</strong> berada <strong>di bawah -3 SD</strong> (Z-Score: {zScore}). Anak tergolong <strong>sangat pendek (severely stunted)</strong>. Segera konsultasikan ke dokter anak atau puskesmas terdekat untuk penanganan gizi intensif.</>
-            ) : isStunting ? (
-              <>Berdasarkan perhitungan <strong>Z-Score WHO</strong>, tinggi badan <strong>{data.nama}</strong> berada <strong>di bawah -2 SD</strong> (Z-Score: {zScore}). Anak tergolong <strong>pendek (stunted)</strong>. Tingkatkan asupan protein hewani dan konsultasikan ke petugas Posyandu atau dokter anak terdekat.</>
-            ) : (
-              <>Kabar baik! Berdasarkan perhitungan <strong>Z-Score WHO</strong> (Z-Score: {zScore}), pertumbuhan <strong>{data.nama}</strong> berada dalam kurva <strong>normal WHO</strong> (≥ -2 SD). Terus pantau dan pertahankan pola makan bergizi seimbang.</>
-            )}
+      
+      {/* Page Header (Toggled only if not showing a specific child detail to save space) */}
+      {!activeData && (
+        <div>
+          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.025em' }}>Hasil Deteksi & Prediksi</h1>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+            Halaman khusus Kader Posyandu untuk impor kolektif berkas Excel dan melihat rangkuman status pertumbuhan balita.
           </p>
         </div>
-      </div>
+      )}
 
-      {/* Main Result Card - Nutritional Status */}
-      <div className="glass-panel" style={{
-        padding: '2.5rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '3rem',
-        flexWrap: 'wrap',
-        borderLeft: `6px solid ${nutBorderColor}`
-      }}>
-        {/* Indeks Massa Tubuh Representation */}
-        <div style={{
-          position: 'relative',
-          width: '180px',
-          height: '180px',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg-primary)',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-color)',
-          flexDirection: 'column'
-        }}>
-          <span style={{ fontSize: '3rem' }}>
-            {nutStatus === 2 ? '⚖️' : nutStatus === 1 ? '🍎' : nutStatus === 0 ? '🥗' : nutStatus === -1 ? '🍲' : '🚨'}
-          </span>
-          <div style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '8px', color: 'var(--text-primary)' }}>
-            BMI: {bmi.toFixed(1)}
-          </div>
-          <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>Indeks Massa Tubuh</div>
-        </div>
-
-        {/* Status Info */}
-        <div style={{ flex: 1, minWidth: '240px' }}>
-          <div style={{
-            display: 'inline-flex',
-            padding: '8px 18px',
-            borderRadius: 'var(--radius-full)',
-            fontSize: '1.1rem',
-            fontWeight: 800,
-            background: nutBgColor,
-            color: nutBadgeColor,
-            marginBottom: '1rem',
-            textTransform: 'uppercase'
-          }}>
-            Status Gizi: {nutLabel}
-          </div>
-
-          <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.95rem' }}>
-            {nutText}
-          </p>
-        </div>
-      </div>
-
-      {/* Detail Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
-        <DetailCard label="Nama Balita" value={data.nama} icon="👶" />
-        <DetailCard label="Umur" value={`${data.umur} Bulan`} icon="📅" />
-        <DetailCard label="Jenis Kelamin" value={data.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'} icon={data.jenisKelamin === 'L' ? '👦' : '👧'} />
-      </div>
-
-      {/* Measurement Table */}
-      <div className="glass-panel" style={{ padding: '2rem' }}>
-        <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem' }}>Detail Pengukuran Saat Ini</h3>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                <th style={thStyle}>Parameter</th>
-                <th style={thStyle}>Nilai Pengukuran</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr style={trStyle}>
-                <td style={tdStyle}><strong>Berat Badan</strong></td>
-                <td style={tdStyle}>{data.bbAkhir} kg</td>
-              </tr>
-              <tr style={trStyle}>
-                <td style={tdStyle}><strong>Tinggi Badan</strong></td>
-                <td style={tdStyle}>{data.tbAkhir} cm</td>
-              </tr>
-              {data.lingkarKepala ? (
-              <tr style={trStyle}>
-                <td style={tdStyle}><strong>Lingkar Kepala</strong></td>
-                <td style={tdStyle}>{data.lingkarKepala} cm</td>
-              </tr>
-              ) : null}
-              {data.lingkarLengan ? (
-              <tr style={trStyle}>
-                <td style={tdStyle}><strong>Lingkar Lengan</strong></td>
-                <td style={tdStyle}>{data.lingkarLengan} cm</td>
-              </tr>
-              ) : null}
-              <tr style={trStyle}>
-                <td style={tdStyle}><strong>Rasio BB/TB</strong></td>
-                <td style={{ ...tdStyle, fontWeight: 700 }}>{data.rasioBBTBAkhir}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* WHO Z-Score Analysis Card */}
-      {data.zScore !== undefined && (
-      <div className="glass-panel" style={{ padding: '2rem' }}>
-        <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-          Analisis Z-Score WHO (Height-for-Age)
-        </h3>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-          <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Z-Score (HAZ)</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: isStunting ? 'var(--accent-coral)' : 'var(--accent-green)' }}>{zScore}</div>
-          </div>
-          <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Median WHO</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{data.medianWHO} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cm</span></div>
-          </div>
-          <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Batas -2 SD</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent-coral)' }}>{data.minus2SD} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cm</span></div>
-          </div>
-          <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Batas -3 SD</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#c62828' }}>{data.minus3SD} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cm</span></div>
-          </div>
-        </div>
-
-        {/* Z-Score Visual Bar */}
-        <div style={{ position: 'relative', width: '100%', height: '40px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: '1rem' }}>
-          {/* Green zone (normal: >= -2) */}
-          <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '40%', background: 'rgba(118, 200, 147, 0.15)' }} />
-          {/* Yellow zone (stunted: -3 to -2) */}
-          <div style={{ position: 'absolute', right: '40%', top: 0, bottom: 0, width: '20%', background: 'rgba(255, 183, 77, 0.15)' }} />
-          {/* Red zone (severely stunted: < -3) */}
-          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '40%', background: 'rgba(231, 111, 81, 0.10)' }} />
-          {/* Z-Score marker — map z from -5 to +3 onto 0% to 100% */}
-          {(() => {
-            const markerPct = Math.max(0, Math.min(100, ((zScore + 5) / 8) * 100));
-            return (
-              <div style={{
-                position: 'absolute',
-                left: `${markerPct}%`,
-                top: '4px',
-                bottom: '4px',
-                width: '4px',
-                background: isStunting ? 'var(--accent-coral)' : 'var(--accent-green)',
-                borderRadius: '2px',
-                boxShadow: `0 0 8px ${isStunting ? 'var(--accent-coral)' : 'var(--accent-green)'}`,
-                transform: 'translateX(-50%)'
-              }} />
-            );
-          })()}
-          {/* -3SD marker */}
-          <div style={{ position: 'absolute', left: '25%', top: 0, bottom: 0, width: '1px', background: 'var(--text-muted)', opacity: 0.3 }} />
-          {/* -2SD marker */}
-          <div style={{ position: 'absolute', left: '37.5%', top: 0, bottom: 0, width: '1px', background: 'var(--text-muted)', opacity: 0.3 }} />
-          {/* 0 (median) marker */}
-          <div style={{ position: 'absolute', left: '62.5%', top: 0, bottom: 0, width: '1px', background: 'var(--text-muted)', opacity: 0.3 }} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-          <span>-5 SD</span>
-          <span>-3 SD</span>
-          <span>-2 SD</span>
-          <span>Median</span>
-          <span>+3 SD</span>
-        </div>
-
+      {/* Hint Box: Navigation / Info for parents vs kader */}
+      {!activeData && (
         <div style={{
           display: 'flex',
           gap: '12px',
           padding: '1rem 1.25rem',
           borderRadius: 'var(--radius-md)',
-          background: 'var(--accent-blue-bg)',
-          border: '1px solid rgba(91, 164, 230, 0.12)',
-          marginTop: '1.25rem'
+          background: 'rgba(91, 164, 230, 0.06)',
+          border: '1px solid rgba(91, 164, 230, 0.12)'
         }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '2px' }}>
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-          </svg>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            <strong style={{ color: 'var(--accent-blue)' }}>Rumus WHO:</strong> Z-Score dihitung dengan metode <strong>LMS</strong> (Lambda-Mu-Sigma) berdasarkan data <strong>WHO Multicentre Growth Reference Study (MGRS)</strong>. Klasifikasi: <strong>Normal</strong> (HAZ ≥ -2 SD), <strong>Pendek/Stunted</strong> (HAZ {'<'} -2 SD), <strong>Sangat Pendek/Severely Stunted</strong> (HAZ {'<'} -3 SD).
+          <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>💡</span>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            <strong style={{ color: 'var(--accent-blue)' }}>Petunjuk Kader:</strong> Unggah file Excel berisi data balita di bawah ini untuk menganalisis Z-Score secara bulk.
+            Jika Anda ingin melakukan input pengukuran secara <strong>mandiri untuk satu anak</strong>, silakan buka halaman{' '}
+            <span
+              style={{ color: 'var(--accent-blue)', cursor: 'pointer', fontWeight: 700, textDecoration: 'underline' }}
+              onClick={() => onNavigate('input')}
+            >
+              📝 Input Data
+            </span>.
           </p>
         </div>
-      </div>
       )}
 
-      {/* Action Buttons */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-        <button className="btn btn-secondary" onClick={() => onNavigate('dashboard')}>
-          ← Kembali ke Dashboard
-        </button>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button className="btn btn-outline" onClick={() => onNavigate('education')}>
-            📚 Tips Nutrisi
+      {/* Tab Switcher - only show if there is an active individual result to switch between tabs */}
+      {activeData && (
+        <div style={{ display: 'flex', gap: '0.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '0.5rem' }}>
+          <button
+            type="button"
+            onClick={() => { setViewMode('kolektif'); setSelectedChildData(null); }}
+            style={viewMode === 'kolektif' ? activeTabStyle : inactiveTabStyle}
+          >
+            📋 Impor Kolektif (Kader)
           </button>
-          <button className="btn btn-primary" onClick={() => onNavigate('input')}>
-            + Periksa Balita Lain
+          <button
+            type="button"
+            onClick={() => setViewMode('detail')}
+            style={viewMode === 'detail' ? activeTabStyle : inactiveTabStyle}
+          >
+            👤 Detail Hasil Individu
           </button>
         </div>
-      </div>
+      )}
+
+      {/* Main Views Switcher */}
+      {viewMode === 'detail' ? renderDetailView() : renderCollectiveView()}
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
