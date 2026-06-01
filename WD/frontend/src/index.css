@@ -51,8 +51,8 @@
   /* Dark Theme Color Tokens */
   --bg-primary: #090c13;         /* Midnight Navy Slate */
   --bg-secondary: #111724;       /* Deep Glass Charcoal */
-  --bg-tertiary: #192131;        /* Solid Dark Card */
-  --border-color: rgba(255, 255, 255, 0.08);
+  --bg-tertiary: #1e293b;        /* Brighter Slate — clearly distinct from bg-secondary */
+  --border-color: rgba(255, 255, 255, 0.12);
   --border-focus: #64b5f6;
   
   /* Brand Accents (Glow / Vibrant for dark bg) */
@@ -302,23 +302,33 @@ body {
   box-shadow: var(--shadow-glow);
 }
 
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .btn-secondary {
   background: var(--bg-tertiary);
   color: var(--text-primary);
+  border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover {
-  background: var(--border-color);
+  background: var(--accent-blue-bg);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
 }
 
 .btn-outline {
   background: transparent;
-  border: 1px solid var(--border-color);
+  border: 1.5px solid var(--text-muted);
   color: var(--text-primary);
 }
 
 .btn-outline:hover {
-  background: var(--bg-primary);
+  background: var(--accent-blue-bg);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
 }
 
 /* Pulse / Animation */
