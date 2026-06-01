@@ -26,6 +26,7 @@ interface Prediction {
   nutritionalLabel?: string;
   status: number;
   probability: number;
+  tipe?: string;
   createdAt: string;
 }
 
@@ -33,9 +34,10 @@ interface ResultViewProps {
   data: Prediction | null;
   onNavigate: (page: string, data?: any) => void;
   apiUrl: string;
+  hideCollective?: boolean;
 }
 
-export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl }) => {
+export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl, hideCollective = false }) => {
   const [viewMode, setViewMode] = useState<'kolektif' | 'detail'>('kolektif');
 
   // Tab 2: Kolektif (Excel) State
@@ -56,14 +58,16 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
 
   // Sync mode with props (e.g. if arriving from individual form submit)
   useEffect(() => {
-    if (data) {
+    if (hideCollective || data?.tipe === 'kolektif') {
+      setViewMode('detail');
+    } else if (data) {
       setViewMode('detail');
       setSelectedChildData(null); // Clear selected child data if prop changes
     } else {
       // Default to collective view if no prop data is available
       setViewMode('kolektif');
     }
-  }, [data]);
+  }, [data, hideCollective]);
 
   // Determine active data to show in detail panel
   const activeData = selectedChildData || data;
@@ -188,7 +192,8 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
               berat: item.berat,
               tinggi: item.tinggi,
               lingkarKepala: item.lingkarKepala,
-              lingkarLengan: item.lingkarLengan
+              lingkarLengan: item.lingkarLengan,
+              tipe: 'kolektif'
             })
           });
 
@@ -924,7 +929,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
                         <td style={{ padding: '12px 8px', textAlign: 'right' }}>
                           <button
                             type="button"
-                            className="btn"
+                            className="btn btn-secondary"
                             onClick={() => {
                               setSelectedChildData(res);
                               setViewMode('detail');
@@ -932,7 +937,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
                                 window.scrollTo({ top: 0, behavior: 'smooth' });
                               }, 100);
                             }}
-                            style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontWeight: 700 }}
+                            style={{ padding: '6px 14px', fontSize: '0.8rem', fontWeight: 700 }}
                           >
                             Detail
                           </button>
@@ -989,7 +994,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
       )}
 
       {/* Tab Switcher - only show if there is an active individual result to switch between tabs */}
-      {activeData && (
+      {!hideCollective && data?.tipe !== 'kolektif' && activeData && (
         <div style={{ display: 'flex', gap: '0.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '0.5rem' }}>
           <button
             type="button"
