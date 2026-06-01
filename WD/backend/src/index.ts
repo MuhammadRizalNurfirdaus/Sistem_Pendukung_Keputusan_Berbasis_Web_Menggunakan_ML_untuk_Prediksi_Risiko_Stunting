@@ -92,6 +92,29 @@ app.get("/api/history", async () => {
   return await loadHistory();
 });
 
+// DELETE /api/history/:id - Delete a saved prediction
+app.delete("/api/history/:id", async ({ params, set }) => {
+  const { id } = params;
+  if (!id) {
+    set.status = 400;
+    return { error: "ID riwayat harus disertakan" };
+  }
+  
+  const history = await loadHistory();
+  const index = history.findIndex((h: any) => h.id === id);
+  
+  if (index === -1) {
+    set.status = 404;
+    return { error: "Riwayat pemeriksaan tidak ditemukan" };
+  }
+  
+  history.splice(index, 1);
+  await saveHistory(history);
+  
+  return { success: true, message: "Riwayat pemeriksaan berhasil dihapus", id };
+});
+
+
 // ============================================================
 // WHO Child Growth Standards - Length/Height-for-Age (0-60 months)
 // Data Source: WHO Multicentre Growth Reference Study (MGRS)
