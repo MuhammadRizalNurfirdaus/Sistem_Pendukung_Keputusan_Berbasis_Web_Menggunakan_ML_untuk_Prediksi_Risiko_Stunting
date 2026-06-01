@@ -1,7 +1,7 @@
 import os
 import mlflow.sklearn
 import pandas as pd
-from src.preprocessing.preprocessing import preprocess_data_anak
+from ..preprocessing.preprocessing import preprocess_data_anak
 
 # Coba melacak path root ML (untuk menemukan mlruns)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
