@@ -98,6 +98,27 @@ function App() {
     }
   };
 
+  const handleDeleteHistory = async (id: string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/history/${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        if (activeResult && activeResult.id === id) {
+          setActiveResult(null);
+        }
+        await fetchHistory();
+      } else {
+        const errorData = await res.json();
+        console.error('Failed to delete history item:', errorData.error);
+        alert(`Gagal menghapus data: ${errorData.error}`);
+      }
+    } catch (err) {
+      console.error('Error deleting history item:', err);
+      alert('Terjadi kesalahan koneksi saat menghapus data.');
+    }
+  };
+
   const handleNavigate = useCallback((page: string, data?: any) => {
     setActivePage(page as PageName);
     if (data !== undefined) {
@@ -118,7 +139,14 @@ function App() {
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':
-        return <Dashboard history={history} activeChild={activeResult} onNavigate={handleNavigate} />;
+        return (
+          <Dashboard 
+            history={history} 
+            activeChild={activeResult} 
+            onNavigate={handleNavigate} 
+            onDeleteHistory={handleDeleteHistory} 
+          />
+        );
       case 'input':
         return <InputForm onNavigate={handleNavigate} apiUrl={API_URL} initialData={activeResult} />;
       case 'predictions':
@@ -126,7 +154,14 @@ function App() {
       case 'education':
         return <Education apiUrl={API_URL} onNavigate={handleNavigate} />;
       default:
-        return <Dashboard history={history} activeChild={activeResult} onNavigate={handleNavigate} />;
+        return (
+          <Dashboard 
+            history={history} 
+            activeChild={activeResult} 
+            onNavigate={handleNavigate} 
+            onDeleteHistory={handleDeleteHistory} 
+          />
+        );
     }
   };
 

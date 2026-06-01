@@ -33,9 +33,15 @@ interface DashboardProps {
   history: Prediction[];
   activeChild: Prediction | null;
   onNavigate: (page: string, data?: any) => void;
+  onDeleteHistory: (id: string) => Promise<void>;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNavigate }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNavigate, onDeleteHistory }) => {
+  const [showConfirmModal, setShowConfirmModal] = React.useState(false);
+  const [selectedIdToDelete, setSelectedIdToDelete] = React.useState<string | null>(null);
+  const [selectedNameToDelete, setSelectedNameToDelete] = React.useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
   // Use activeChild if available, otherwise fallback to latest in history or a default template
   const defaultLeo: Prediction = {
     id: 'default-leo',
@@ -372,7 +378,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNa
                       </span>
                     </td>
                     <td style={{ padding: '14px 8px' }}>{(h.probability * 100).toFixed(0)}%</td>
-                    <td style={{ padding: '14px 8px', textAlign: 'right' }}>
+                    <td style={{ padding: '14px 8px', textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
                       <button 
                         onClick={() => {
                           if (h.tipe === 'kolektif') {
@@ -386,6 +392,41 @@ export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNa
                       >
                         Detail
                       </button>
+                      <button 
+                        onClick={() => {
+                          setSelectedIdToDelete(h.id);
+                          setSelectedNameToDelete(h.nama);
+                          setShowConfirmModal(true);
+                        }}
+                        className="btn" 
+                        style={{ 
+                          padding: '6px 14px', 
+                          fontSize: '0.8rem', 
+                          fontWeight: 700,
+                          background: 'var(--accent-coral-bg)',
+                          color: 'var(--accent-coral)',
+                          border: '1px solid rgba(231, 111, 81, 0.15)',
+                          transition: 'all var(--transition-fast)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--accent-coral)';
+                          e.currentTarget.style.color = '#ffffff';
+                          e.currentTarget.style.borderColor = 'var(--accent-coral)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'var(--accent-coral-bg)';
+                          e.currentTarget.style.color = 'var(--accent-coral)';
+                          e.currentTarget.style.borderColor = 'rgba(231, 111, 81, 0.15)';
+                        }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle', marginRight: '4px' }}>
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          <line x1="10" y1="11" x2="10" y2="17"></line>
+                          <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                        Hapus
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -394,6 +435,133 @@ export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNa
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(9, 12, 19, 0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          animation: 'fadeIn var(--transition-fast)'
+        }}>
+          <div 
+            className="glass-panel" 
+            style={{
+              width: '90%',
+              maxWidth: '420px',
+              padding: '2rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.5rem',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-secondary)',
+              boxShadow: 'var(--shadow-lg)',
+              animation: 'scaleIn var(--transition-fast)'
+            }}
+          >
+            {/* Modal Icon & Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: 'var(--radius-full)',
+                background: 'var(--accent-coral-bg)',
+                color: 'var(--accent-coral)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.5rem',
+                flexShrink: 0
+              }}>
+                ⚠️
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Hapus Riwayat?
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tindakan ini tidak dapat dibatalkan</span>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              Apakah Bunda yakin ingin menghapus data riwayat pemeriksaan untuk <strong>{selectedNameToDelete}</strong>? Data ini akan terhapus secara permanen dari sistem.
+            </p>
+
+            {/* Modal Footer / Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button 
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setSelectedIdToDelete(null);
+                  setSelectedNameToDelete(null);
+                }}
+                className="btn btn-secondary"
+                style={{ padding: '10px 18px', fontSize: '0.9rem' }}
+                disabled={isDeleting}
+              >
+                Batal
+              </button>
+              <button 
+                onClick={async () => {
+                  if (selectedIdToDelete) {
+                    setIsDeleting(true);
+                    try {
+                      await onDeleteHistory(selectedIdToDelete);
+                    } catch (err) {
+                      console.error(err);
+                    } finally {
+                      setIsDeleting(false);
+                      setShowConfirmModal(false);
+                      setSelectedIdToDelete(null);
+                      setSelectedNameToDelete(null);
+                    }
+                  }
+                }}
+                className="btn"
+                style={{ 
+                  padding: '10px 18px', 
+                  fontSize: '0.9rem',
+                  background: 'var(--accent-coral)',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  transition: 'all var(--transition-fast)'
+                }}
+                disabled={isDeleting}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--accent-coral-hover)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--accent-coral)';
+                }}
+              >
+                {isDeleting ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 };
