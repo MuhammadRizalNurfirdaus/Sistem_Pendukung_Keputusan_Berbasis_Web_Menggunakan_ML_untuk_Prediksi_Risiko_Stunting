@@ -32,6 +32,7 @@ interface Prediction {
   nutritionalLabel?: string;
   status: number;
   probability: number;
+  tipe?: string;
   createdAt: string;
 }
 
@@ -99,8 +100,10 @@ function App() {
 
   const handleNavigate = useCallback((page: string, data?: any) => {
     setActivePage(page as PageName);
-    if (data) {
+    if (data !== undefined) {
       setActiveResult(data);
+    } else {
+      setActiveResult(null);
     }
     // Re-fetch history when going to dashboard
     if (page === 'dashboard') {
@@ -117,7 +120,7 @@ function App() {
       case 'dashboard':
         return <Dashboard history={history} activeChild={activeResult} onNavigate={handleNavigate} />;
       case 'input':
-        return <InputForm onNavigate={handleNavigate} apiUrl={API_URL} />;
+        return <InputForm onNavigate={handleNavigate} apiUrl={API_URL} initialData={activeResult} />;
       case 'predictions':
         return <ResultView data={activeResult} onNavigate={handleNavigate} apiUrl={API_URL} />;
       case 'education':
