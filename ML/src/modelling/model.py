@@ -1,5 +1,6 @@
 import os
 import mlflow.sklearn
+import pandas as pd
 from src.preprocessing.preprocessing import preprocess_data_anak
 
 # Coba melacak path root ML (untuk menemukan mlruns)
@@ -64,3 +65,17 @@ class StuntingPredictor:
             "status_teks": status_teks,
             "pesan": pesan
         }
+
+    def predict_bulk(self, df_input: pd.DataFrame) -> list:
+        """
+        Menerima DataFrame hasil dari process_excel_template (Banyak Anak),
+        lalu memprediksi semuanya sekaligus (Batch Prediction).
+        Mengembalikan list of string ["NORMAL", "BERISIKO STUNTING", ...].
+        """
+        if self.model is None:
+            self.load_model()
+            
+        prediksi_array = self.model.predict(df_input)
+        hasil_teks = ["NORMAL" if p == 0 else "BERISIKO STUNTING" for p in prediksi_array]
+        
+        return hasil_teks
