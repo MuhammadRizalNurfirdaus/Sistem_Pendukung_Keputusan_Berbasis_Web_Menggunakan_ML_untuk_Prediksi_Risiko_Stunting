@@ -17,9 +17,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
     umur: initialData?.umur?.toString() || '',
     jenisKelamin: initialData?.jenisKelamin || 'L' as 'L' | 'P',
     berat: initialData?.bbAkhir?.toString() || initialData?.berat?.toString() || '',
-    tinggi: initialData?.tbAkhir?.toString() || initialData?.tinggi?.toString() || '',
-    lingkarKepala: initialData?.lingkarKepala?.toString() || '',
-    lingkarLengan: initialData?.lingkarLengan?.toString() || ''
+    tinggi: initialData?.tbAkhir?.toString() || initialData?.tinggi?.toString() || ''
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -33,9 +31,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
         umur: initialData.umur?.toString() || '',
         jenisKelamin: initialData.jenisKelamin || 'L',
         berat: initialData.bbAkhir?.toString() || initialData.berat?.toString() || '',
-        tinggi: initialData.tbAkhir?.toString() || initialData.tinggi?.toString() || '',
-        lingkarKepala: initialData.lingkarKepala?.toString() || '',
-        lingkarLengan: initialData.lingkarLengan?.toString() || ''
+        tinggi: initialData.tbAkhir?.toString() || initialData.tinggi?.toString() || ''
       });
       // Scroll to result section after rendering
       setTimeout(() => {
@@ -49,9 +45,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
         umur: '',
         jenisKelamin: 'L',
         berat: '',
-        tinggi: '',
-        lingkarKepala: '',
-        lingkarLengan: ''
+        tinggi: ''
       });
     }
   }, [initialData]);
@@ -91,19 +85,9 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
       errors.tinggi = 'Tinggi badan harus berupa angka lebih besar dari 0';
     }
 
-    if (formData.lingkarKepala) {
-      const lkVal = parseFloat(formData.lingkarKepala);
-      if (isNaN(lkVal) || lkVal <= 0) {
-        errors.lingkarKepala = 'Lingkar kepala harus berupa angka positif';
-      }
-    }
 
-    if (formData.lingkarLengan) {
-      const llVal = parseFloat(formData.lingkarLengan);
-      if (isNaN(llVal) || llVal <= 0) {
-        errors.lingkarLengan = 'Lingkar lengan harus berupa angka positif';
-      }
-    }
+
+
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -127,8 +111,6 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
         jenisKelamin: formData.jenisKelamin,
         berat: parseFloat(formData.berat),
         tinggi: parseFloat(formData.tinggi),
-        lingkarKepala: formData.lingkarKepala ? parseFloat(formData.lingkarKepala) : undefined,
-        lingkarLengan: formData.lingkarLengan ? parseFloat(formData.lingkarLengan) : undefined,
         tipe: 'mandiri'
       };
 
@@ -244,7 +226,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
             Data Pengukuran
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1rem' }}>
             <div className="form-group">
               <label htmlFor="input-berat" className="form-label">Berat Badan (kg)</label>
               <input id="input-berat" type="number" step="any" className="form-input" placeholder="Contoh: 9.0" min="0.01" value={formData.berat} onChange={e => handleChange('berat', e.target.value)} required />
@@ -257,19 +239,9 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Rentang wajar: 40 - 130 cm</span>
               {validationErrors.tinggi && <span style={{ color: 'var(--accent-coral)', fontSize: '0.8rem', marginTop: '4px', fontWeight: 600 }}>{validationErrors.tinggi}</span>}
             </div>
-            <div className="form-group">
-              <label htmlFor="input-lingkar-kepala" className="form-label">Lingkar Kepala (cm)</label>
-              <input id="input-lingkar-kepala" type="number" step="any" className="form-input" placeholder="Contoh: 46.5" min="0.1" value={formData.lingkarKepala} onChange={e => handleChange('lingkarKepala', e.target.value)} />
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Rentang wajar: 30 - 60 cm (opsional)</span>
-              {validationErrors.lingkarKepala && <span style={{ color: 'var(--accent-coral)', fontSize: '0.8rem', marginTop: '4px', fontWeight: 600 }}>{validationErrors.lingkarKepala}</span>}
-            </div>
-            <div className="form-group">
-              <label htmlFor="input-lingkar-lengan" className="form-label">Lingkar Lengan (cm)</label>
-              <input id="input-lingkar-lengan" type="number" step="any" className="form-input" placeholder="Contoh: 14.2" min="0.1" value={formData.lingkarLengan} onChange={e => handleChange('lingkarLengan', e.target.value)} />
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Rentang wajar: 5 - 25 cm (opsional)</span>
-              {validationErrors.lingkarLengan && <span style={{ color: 'var(--accent-coral)', fontSize: '0.8rem', marginTop: '4px', fontWeight: 600 }}>{validationErrors.lingkarLengan}</span>}
-            </div>
           </div>
+
+
 
           {/* Info Box */}
           <div style={{
