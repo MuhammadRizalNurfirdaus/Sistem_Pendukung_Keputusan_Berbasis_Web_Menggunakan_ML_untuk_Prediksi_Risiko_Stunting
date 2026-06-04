@@ -208,9 +208,83 @@ function App() {
     }
   };
 
+  // Theme toggle node shared across auth and main app
+  const themeToggleNode = (
+    <>
+      {/* Floating Theme Toggle (glowing icon-only styling) */}
+      <button
+        onClick={() => setDarkMode(!darkMode)}
+        className="theme-toggle-btn"
+        aria-label="Toggle Theme"
+      >
+        {darkMode ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffb74d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 5px rgba(255, 183, 77, 0.75))' }}>
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5c6bc0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 5px rgba(92, 107, 192, 0.5))' }}>
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        )}
+      </button>
+
+      {/* Extra responsive styles for theme toggle */}
+      <style>{`
+        .theme-toggle-btn {
+          position: fixed;
+          bottom: 2rem;
+          right: 2rem;
+          z-index: 999;
+          width: 44px;
+          height: 44px;
+          border-radius: var(--radius-full);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: var(--text-primary);
+          box-shadow: var(--shadow-sm);
+          transition: all var(--transition-fast);
+          backdrop-filter: blur(8px);
+        }
+        .theme-toggle-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-md);
+          border-color: var(--accent-blue);
+        }
+        @media (max-width: 1024px) {
+          .theme-toggle-btn {
+            bottom: 80px;
+            right: 16px;
+            top: auto;
+            width: 44px;
+            height: 44px;
+            z-index: 1001;
+            position: fixed;
+          }
+        }
+      `}</style>
+    </>
+  );
+
   // If not authenticated, show login/register page
   if (!authUser) {
-    return <AuthPage onLogin={handleLogin} apiUrl={API_URL} />;
+    return (
+      <>
+        <AuthPage onLogin={handleLogin} apiUrl={API_URL} />
+        {themeToggleNode}
+      </>
+    );
   }
 
   return (
@@ -392,57 +466,10 @@ function App() {
         {renderPage()}
       </main>
 
-      {/* Floating Theme Toggle (glowing icon-only styling) */}
-      <button
-        onClick={() => setDarkMode(!darkMode)}
-        className="theme-toggle-btn"
-        aria-label="Toggle Theme"
-      >
-        {darkMode ? (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffb74d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 5px rgba(255, 183, 77, 0.75))' }}>
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          </svg>
-        ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5c6bc0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 5px rgba(92, 107, 192, 0.5))' }}>
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        )}
-      </button>
+      {themeToggleNode}
 
       {/* Extra responsive styles */}
       <style>{`
-        .theme-toggle-btn {
-          position: fixed;
-          bottom: 2rem;
-          right: 2rem;
-          z-index: 999;
-          width: 44px;
-          height: 44px;
-          border-radius: var(--radius-full);
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          color: var(--text-primary);
-          box-shadow: var(--shadow-sm);
-          transition: all var(--transition-fast);
-          backdrop-filter: blur(8px);
-        }
-        .theme-toggle-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: var(--shadow-md);
-          border-color: var(--accent-blue);
-        }
         @media (max-width: 1024px) {
           .mobile-top-bar {
             display: flex !important;
@@ -450,15 +477,6 @@ function App() {
           .main-content {
             padding-top: calc(56px + 1.5rem) !important;
             padding-bottom: calc(64px + 1.5rem) !important;
-          }
-          .theme-toggle-btn {
-            bottom: 80px;
-            right: 16px;
-            top: auto;
-            width: 44px;
-            height: 44px;
-            z-index: 1001;
-            position: fixed;
           }
         }
         .history-row:hover {
