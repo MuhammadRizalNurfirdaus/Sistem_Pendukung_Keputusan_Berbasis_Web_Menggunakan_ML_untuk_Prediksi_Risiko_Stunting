@@ -10,30 +10,43 @@ Berbeda dengan sistem deteksi statis, arsitektur ML pada proyek ini bersifat din
 
 *   **`data/`**: Direktori penyimpanan dataset utama.
     *   `raw/`: Tempat menyimpan file Excel mentah asli dari Posyandu (`dataset_posyandu.xlsx`). Data di dalam folder ini dijaga keasliannya dan merupakan representasi langsung dari *ground truth* lapangan.
-    *   `processed/`: Tempat menyimpan dataset final (`dataset_final_training.csv`) yang telah melalui tahap pembersihan, ekstraksi fitur, dan penyeimbangan (*balancing*). File ini adalah sumber utama untuk pelatihan model.
-*   **`notebooks/`**: Ruang eksperimen utama
-    *   `generate_dummy_data.ipynb`: Tahap pembersihan data, ekstraksi fitur (*Feature Engineering*), dan augmentasi (*Balancing*) menggunakan SMOTE.
+    *   `processed/`: Tempat menyimpan dataset final (`dataset_final_training.csv`) yang telah melalui tahap pembersihan, ekstraksi fitur, augmentasi (simulasi parametrik), dan penyeimbangan (*balancing*). File ini berisi ~602 baris data latih yang sangat *robust* secara medis.
+*   **`notebooks/`**: Ruang eksperimen utama.
+    *   `generate_dummy_data.ipynb`: Tahap pembersihan data, ekstraksi fitur (*Feature Engineering*), Injeksi Profil Virtual (*Parametric Simulation*), dan augmentasi menggunakan SMOTE.
     *   `modelling_experiment.ipynb`: Tahap pelatihan algoritma Random Forest, evaluasi akurasi metrik, identifikasi *Feature Importance*, dan pendaftaran model ke dalam *registry* MLflow.
-    *   `uji_coba_data_baru.ipynb`: Lingkungan simulasi untuk menguji hasil *inference* (prediksi) model terhadap data fiktif baru.
-*   **`src/`**: Direktori yang dipersiapkan untuk menyimpan *source code* Python berstruktur *modular* yang akan diintegrasikan dengan *backend* Aplikasi Web di tahap selanjutnya.
-*   **`mlruns/`**: Direktori otomatis yang dikelola oleh *framework* MLflow untuk menyimpan versi model, riwayat pelatihan, dan metrik akurasi dari setiap eksperimen.
+    *   `uji_coba_data_baru.ipynb`: Lingkungan simulasi untuk menguji hasil *inference* (prediksi) model.
+*   **`src/`**: Direktori yang berisi *source code* Python berstruktur modular (termasuk FastAPI) yang siap diintegrasikan dengan *backend* Aplikasi Web.
+*   **`mlruns/`**: Direktori pelacakan dari *framework* MLflow untuk menyimpan versi model dan metrik akurasi.
 
 ---
 
 ## Arsitektur Data & Strategi Machine Learning
 
-Untuk memastikan model mencapai akurasi tinggi dan relevansi medis yang valid, pipeline ML ini menerapkan beberapa strategi:
+Untuk memastikan model mencapai akurasi tinggi dan memiliki relevansi medis yang valid (bebas dari akurasi semu), pipeline ML ini menerapkan strategi kelas industri:
 
-### 1. Ekstraksi Fitur Dinamis (Feature Engineering)
-Model tidak mengandalkan pencatatan statis berbasis bulan kalender (misal: Tinggi Bulan Januari), melainkan mengekstrak metrik performa pertumbuhan:
-*   **`Kecepatan_Tumbuh_TB` & `Kecepatan_Tumbuh_BB`**: Laju pertumbuhan rata-rata (*Average Growth Velocity*) yang dihitung murni secara matematis berdasarkan selisih pengukuran akhir dan awal, dibagi lama pantauan. Fitur rekayasa (*Feature Engineering*) ini memungkinkan model bertindak sebagai *Early Warning System* untuk mendeteksi *Faltering Growth*, jauh sebelum tinggi anak secara absolut benar-benar jatuh di bawah standar Z-Score WHO.
+### 1. Data Cleansing (Koreksi Label Berbasis Standar WHO)
+Dikarenakan data mentah dari lapangan (*raw data*) kerap memiliki anomali pelabelan atau *Human Error* (misal: anak kerdil dilabeli normal, anak tinggi dilabeli stunting), model ini melakukan pembersihan awal. Label stunting dihitung ulang dan dikalibrasi secara ketat mengikuti kurva batas bawah Tinggi-terhadap-Umur dari WHO. 
+
+### 2. Ekstraksi Fitur Dinamis (Feature Engineering)
+Model tidak mengandalkan pencatatan statis berbasis kalender, melainkan mengekstrak metrik performa:
+*   **`Kecepatan_Tumbuh_TB` & `Kecepatan_Tumbuh_BB`**: Laju pertumbuhan rata-rata (*Average Growth Velocity*). Fitur ini memungkinkan model bertindak sebagai *Early Warning System* untuk mendeteksi gagal tumbuh (*Faltering Growth*) sebelum tinggi anak absolut jatuh di bawah standar Z-Score WHO.
 *   **`Rasio_BB_TB_Akhir`**: Indikator nutrisi akut (*wasting*) pada bulan pemeriksaan terakhir.
 
-### 2. Penanganan Bias Demografi (Injeksi Profil Klinis)
-Dikarenakan data mentah Posyandu tidak memiliki riwayat balita stunting di bawah usia 23 bulan, model rentan mengalami "Kebutaan Demografi" (menganggap semua bayi pendek adalah normal). Hal ini diatasi dengan cara menyuntikkan profil medis fiktif berupa bayi usia 6-22 bulan dengan parameter klinis stunting berat (kecepatan tumbuh mendekati 0 cm/bulan).
+### 3. Synthetic Data Generation (Parametric Simulation)
+Karena jumlah data mentah sangat minim (hanya ~90 baris), pipeline ini melahirkan 500 profil pasien virtual (250 Normal, 250 Stunting) melalui teknik simulasi parametrik. Setiap anak virtual diikat dengan korelasi klinis yang ketat (Umur, Tinggi, dan Berat mengikuti standar fisik manusia sungguhan). Hal ini memungkinkan mesin belajar dari lautan data yang realistis dan memperkuat kemampuannya mengenali kasus *borderline* (perbatasan).
 
-### 3. Penyeimbangan Kelas dengan SMOTE
-Untuk mencegah bias dominansi mayoritas kelas Normal, dataset dibalancing menggunakan *Synthetic Minority Over-sampling Technique* (SMOTE). SMOTE mempelajari pola medis dari data stunting asli beserta profil klinis hasil injeksi untuk menciptakan representasi data sintetis yang sangat masuk akal secara medis, menghasilkan dataset final yang seimbang 50:50.
+### 4. Penyeimbangan Kelas dengan SMOTE
+Untuk menyempurnakan proporsi kelas agar 50:50 sempurna secara matematis (mencegah bias algoritma), dataset dikalibrasi akhir menggunakan *Synthetic Minority Over-sampling Technique* (SMOTE).
 
-### 4. Proyeksi Ekstrapolasi Masa Depan
-Berdasarkan parameter `Umur` dan `Kecepatan_Tumbuh`, arsitektur ini memungkinkan aplikasi tingkat lanjut untuk meramalkan status gizi anak di masa depan. Jika kecepatan tumbuh anak bernilai nol (0 cm/bulan), sistem dapat mensimulasikan penambahan umur tanpa penambahan tinggi, secara matematis mengklasifikasikan anak tersebut ke dalam kategori Stunting di bulan-bulan mendatang.
+### 5. Proyeksi Ekstrapolasi Masa Depan (Simulasi Prediksi)
+Berdasarkan parameter `Umur` dan `Kecepatan_Tumbuh`, arsitektur ini meramalkan status gizi anak di masa depan. Jika kecepatan tumbuh anak lambat, sistem dapat mensimulasikan penambahan umur tanpa penambahan tinggi yang signifikan, lalu secara matematis mengklasifikasikan risiko anak tersebut di bulan-bulan mendatang.
+
+---
+
+## Endpoint API (Backend ML)
+Sistem ini telah menyediakan 4 jalur API menggunakan *framework* FastAPI (berada di dalam `main.py` di _root directory_) yang siap diakses oleh Frontend (Web/Android):
+
+1. **`POST /api/predict/single`**: Kalkulator cepat untuk 1 anak (menilai status saat ini secara instan).
+2. **`POST /api/predict/future`**: Kalkulator 1 anak dengan tambahan fitur simulasi ekstrapolasi (memprediksi risiko stunting di target bulan masa depan).
+3. **`POST /api/predict/bulk`**: Fitur unggah file Excel (Upload Bulk) untuk menilai puluhan/ratusan data riwayat anak sekaligus secara otomatis.
+4. **`POST /api/predict/bulk-future`**: Fitur unggah file Excel massal yang dilengkapi simulasi masa depan untuk seluruh anak di dalam file tersebut.
