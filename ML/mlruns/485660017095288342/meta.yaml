@@ -1,0 +1,8 @@
+artifact_location: file:///home/rizal/MyProject/Pijak/Sistem_Pendukung_Keputusan_Berbasis_Web_Menggunakan_Machine_Learning_untuk_Prediksi_Risiko_Stunting_pada_Anak/ML/mlruns/485660017095288342
+creation_time: 1780559640125
+experiment_id: '485660017095288342'
+last_update_time: 1780559640125
+lifecycle_stage: active
+name: Stunting_Model_Experiment
+trace_location: null
+workspace: default
