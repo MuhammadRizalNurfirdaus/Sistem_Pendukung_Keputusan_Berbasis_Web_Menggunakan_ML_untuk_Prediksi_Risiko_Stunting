@@ -3,44 +3,52 @@
 :root {
   /* Font Family */
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  
+
   /* Light Theme Color Tokens */
-  --bg-primary: #faf9f8;         /* Warm Alabaster */
-  --bg-secondary: #ffffff;       /* Soft White */
-  --bg-tertiary: #f2efe9;        /* Warm Creamy Slate */
+  --bg-primary: #faf9f8;
+  /* Warm Alabaster */
+  --bg-secondary: #ffffff;
+  /* Soft White */
+  --bg-tertiary: #f2efe9;
+  /* Warm Creamy Slate */
   --border-color: rgba(26, 34, 51, 0.08);
   --border-focus: #5ba4e6;
-  
+
   /* Brand Accents */
-  --accent-blue: #5ba4e6;        /* Sky Blue */
+  --accent-blue: #5ba4e6;
+  /* Sky Blue */
   --accent-blue-hover: #4592db;
   --accent-blue-bg: rgba(91, 164, 230, 0.08);
-  
-  --accent-green: #76c893;       /* Sage Green */
+
+  --accent-green: #76c893;
+  /* Sage Green */
   --accent-green-hover: #5ebb7d;
   --accent-green-bg: rgba(118, 200, 147, 0.1);
-  
-  --accent-coral: #e76f51;       /* Warm Coral / Alerts */
+
+  --accent-coral: #e76f51;
+  /* Warm Coral / Alerts */
   --accent-coral-hover: #e35a37;
   --accent-coral-bg: rgba(231, 111, 81, 0.1);
-  
+
   /* Typography */
-  --text-primary: #1a2233;       /* Deep Slate Blue */
-  --text-secondary: #5e6675;     /* Cool Grey */
+  --text-primary: #1a2233;
+  /* Deep Slate Blue */
+  --text-secondary: #5e6675;
+  /* Cool Grey */
   --text-muted: #8e95a5;
-  
+
   /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.02);
   --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.03);
   --shadow-lg: 0 20px 48px rgba(26, 34, 51, 0.06);
   --shadow-glow: 0 8px 24px rgba(91, 164, 230, 0.12);
-  
+
   /* Border Radius */
   --radius-sm: 8px;
   --radius-md: 16px;
   --radius-lg: 24px;
   --radius-full: 9999px;
-  
+
   /* Transitions */
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -49,30 +57,33 @@
 
 [data-theme="dark"] {
   /* Dark Theme Color Tokens */
-  --bg-primary: #090c13;         /* Midnight Navy Slate */
-  --bg-secondary: #111724;       /* Deep Glass Charcoal */
-  --bg-tertiary: #1e293b;        /* Brighter Slate — clearly distinct from bg-secondary */
+  --bg-primary: #090c13;
+  /* Midnight Navy Slate */
+  --bg-secondary: #111724;
+  /* Deep Glass Charcoal */
+  --bg-tertiary: #1e293b;
+  /* Brighter Slate — clearly distinct from bg-secondary */
   --border-color: rgba(255, 255, 255, 0.12);
   --border-focus: #64b5f6;
-  
+
   /* Brand Accents (Glow / Vibrant for dark bg) */
   --accent-blue: #64b5f6;
   --accent-blue-hover: #90caf9;
   --accent-blue-bg: rgba(100, 181, 246, 0.12);
-  
+
   --accent-green: #81c784;
   --accent-green-hover: #a5d6a7;
   --accent-green-bg: rgba(129, 199, 132, 0.15);
-  
+
   --accent-coral: #ff7043;
   --accent-coral-hover: #ff8a65;
   --accent-coral-bg: rgba(255, 112, 67, 0.15);
-  
+
   /* Typography */
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
-  
+
   /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.35);
@@ -157,13 +168,16 @@ body {
   .sidebar {
     transform: translateX(-100%);
   }
+
   .sidebar.active {
     transform: translateX(0);
   }
+
   .main-content {
     margin-left: 0;
     padding: 1.5rem;
   }
+
   .mobile-nav-bar {
     display: flex !important;
   }
@@ -333,10 +347,13 @@ body {
 
 /* Pulse / Animation */
 @keyframes pulse-soft {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.8;
     transform: scale(0.98);
@@ -356,6 +373,7 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
