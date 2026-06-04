@@ -4,8 +4,16 @@ import { Dashboard } from './components/Dashboard';
 import { InputForm } from './components/InputForm';
 import { ResultView } from './components/ResultView';
 import { Education } from './components/Education';
+import { AuthPage } from './components/AuthPage';
 
 const API_URL = 'http://localhost:3010';
+
+interface AuthUser {
+  id: string;
+  username: string;
+  full_name: string;
+  role: string;
+}
 
 interface Prediction {
   id: string;
@@ -62,6 +70,14 @@ const navItems: { id: PageName; label: string; icon: React.ReactNode }[] = [
 ];
 
 function App() {
+  const [authUser, setAuthUser] = useState<AuthUser | null>(() => {
+    try {
+      const stored = localStorage.getItem('auth_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   const [activePage, setActivePage] = useState<PageName>('dashboard');
   const [history, setHistory] = useState<Prediction[]>([]);
   const [activeResult, setActiveResult] = useState<Prediction | null>(null);
@@ -70,10 +86,25 @@ function App() {
     return localStorage.getItem('theme') === 'dark';
   });
 
+  const handleLogin = (user: AuthUser) => {
+    setAuthUser(user);
+  };
+
+  const handleLogout = () => {
+    setAuthUser(null);
+    localStorage.removeItem('auth_user');
+    setHistory([]);
+    setActiveResult(null);
+    setActivePage('dashboard');
+  };
+
   // Fetch history on mount
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    if (authUser) {
+      fetchHistory();
+    }
+  }, [authUser]);
+
 
   // Sync theme
   useEffect(() => {
@@ -87,8 +118,9 @@ function App() {
   }, [darkMode]);
 
   const fetchHistory = async () => {
+    if (!authUser) return;
     try {
-      const res = await fetch(`${API_URL}/api/history`);
+      const res = await fetch(`${API_URL}/api/history?user_id=${authUser.id}`);
       if (res.ok) {
         const data = await res.json();
         setHistory(data);
@@ -165,6 +197,11 @@ function App() {
     }
   };
 
+  // If not authenticated, show login/register page
+  if (!authUser) {
+    return <AuthPage onLogin={handleLogin} apiUrl={API_URL} />;
+  }
+
   return (
     <>
       {/* Sidebar */}
@@ -211,13 +248,61 @@ function App() {
           ))}
         </nav>
 
-        {/* Sidebar Footer */}
+        {/* User Info & Logout */}
         <div style={{
           borderTop: '1px solid var(--border-color)',
           paddingTop: '1.25rem',
           marginTop: '1rem'
         }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          {/* User Greeting */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            marginBottom: '12px',
+            padding: '10px 12px',
+            background: 'var(--accent-blue-bg)',
+            borderRadius: 'var(--radius-sm)',
+          }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: 'var(--radius-full)',
+              background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-green))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              flexShrink: 0,
+            }}>
+              {authUser.full_name?.charAt(0)?.toUpperCase() || authUser.username.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: '0.8rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {authUser.full_name || authUser.username}
+              </p>
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>@{authUser.username}</p>
+            </div>
+          </div>
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="nav-link"
+            id="btn-logout"
+            style={{ color: 'var(--accent-coral)', width: '100%' }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>Keluar</span>
+          </button>
+
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: '12px' }}>
             Sistem Pendukung Keputusan Berbasis Web — Random Forest ML Pipeline.
           </p>
           <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>v1.0 • Kelompok Pijak © 2026</p>
