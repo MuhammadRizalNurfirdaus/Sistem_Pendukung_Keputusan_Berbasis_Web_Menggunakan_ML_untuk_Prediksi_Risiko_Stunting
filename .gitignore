@@ -1,8 +1,10 @@
-# Ignore ML folder on wd branch to keep Git panel clean
-/ML/
-
-# Ignore local WD build/dependency files
+# Ignore local WD/ML build, dependency, and cache files
 /WD/frontend/.vite/
 /WD/frontend/dist/
 /WD/backend/node_modules/
 /WD/frontend/node_modules/
+/ML/__pycache__/
+/ML/**/*.pyc
+/ML/venv/
+.venv/
+venv/
