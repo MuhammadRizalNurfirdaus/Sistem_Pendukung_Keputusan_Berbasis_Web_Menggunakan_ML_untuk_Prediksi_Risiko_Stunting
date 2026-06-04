@@ -42,6 +42,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNa
   const [selectedNameToDelete, setSelectedNameToDelete] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
 
+  // Dynamic greeting based on current time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 4 && hour < 11) return 'Selamat Pagi';
+    if (hour >= 11 && hour < 15) return 'Selamat Siang';
+    if (hour >= 15 && hour < 18) return 'Selamat Sore';
+    return 'Selamat Malam';
+  };
+
   // Use activeChild if available, otherwise fallback to latest in history or a default template
   const defaultLeo: Prediction = {
     id: 'default-leo',
@@ -83,7 +92,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNa
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em', marginBottom: '0.25rem' }}>
-            Selamat Pagi, Bunda! 👋
+            {getGreeting()}, Kader! 👋
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem' }}>
             Berikut adalah rangkuman tumbuh kembang si kecil secara dinamis.
@@ -493,7 +502,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNa
 
             {/* Modal Body */}
             <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              Apakah Bunda yakin ingin menghapus data riwayat pemeriksaan untuk <strong>{selectedNameToDelete}</strong>? Data ini akan terhapus secara permanen dari sistem.
+              Apakah Anda yakin ingin menghapus data riwayat pemeriksaan untuk <strong>{selectedNameToDelete}</strong>? Data ini akan terhapus secara permanen dari sistem.
             </p>
 
             {/* Modal Footer / Buttons */}

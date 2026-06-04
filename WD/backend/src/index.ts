@@ -1,32 +1,53 @@
 import { Elysia, t } from "elysia";
-import { join } from "path";
 
 const app = new Elysia();
 
-// File path for saving prediction history
-const HISTORY_FILE_PATH = join(__dirname, "../history.json");
+// ============================================================
+// Supabase Configuration
+// ============================================================
+const SUPABASE_URL = "https://lrepbmsdfvfkxeemfkpx.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyZXBibXNkZnZma3hlZW1ma3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMTAyNjQsImV4cCI6MjA5NTg4NjI2NH0.0SGgJm3gnXStNK-xrdpk32l4EqHaqVgwauU657MCTT8";
 
-// Load history from JSON file
-async function loadHistory() {
-  try {
-    const file = Bun.file(HISTORY_FILE_PATH);
-    if (await file.exists()) {
-      return await file.json();
-    }
-  } catch (error) {
-    console.error("Failed to load history:", error);
+// Simple Supabase REST helper (zero-dependency)
+async function supabaseQuery(table: string, options: {
+  method?: string;
+  body?: any;
+  select?: string;
+  filters?: string;
+  single?: boolean;
+} = {}) {
+  const { method = "GET", body, select = "*", filters = "", single = false } = options;
+  
+  let url = `${SUPABASE_URL}/rest/v1/${table}?select=${select}`;
+  if (filters) url += `&${filters}`;
+  
+  const headers: Record<string, string> = {
+    "apikey": SUPABASE_ANON_KEY,
+    "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+    "Content-Type": "application/json",
+    "Prefer": method === "POST" ? "return=representation" : "return=minimal",
+  };
+  
+  if (single) {
+    headers["Accept"] = "application/vnd.pgrst.object+json";
   }
-  return [];
+  
+  const res = await fetch(url, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Supabase error (${res.status}): ${errText}`);
+  }
+  
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
-// Save history to JSON file
-async function saveHistory(history: any[]) {
-  try {
-    await Bun.write(HISTORY_FILE_PATH, JSON.stringify(history, null, 2));
-  } catch (error) {
-    console.error("Failed to save history:", error);
-  }
-}
+// History is now stored in Supabase 'predictions' table (per-user)
 
 // Manual CORS implementation for simple, zero-dependency reliability
 app.onRequest(({ set }) => {
@@ -49,6 +70,74 @@ app.get("/", () => {
     message: "Sistem Pendukung Keputusan Stunting Balita API is running smoothly!",
     timestamp: new Date().toISOString()
   };
+});
+
+// ============================================================
+// AUTH API - Login only (single account, no registration)
+// ============================================================
+
+// POST /api/auth/login - Login user (username or email)
+app.post("/api/auth/login", async ({ body, set }) => {
+  const { username, password } = body;
+
+  if (!username || !password) {
+    set.status = 400;
+    return { error: "Username/email dan password harus diisi." };
+  }
+
+  try {
+    // Determine if input is email or username
+    const input = username.trim().toLowerCase();
+    const isEmail = input.includes("@");
+    const filterField = isEmail ? "email" : "username";
+
+    // Find user by username or email
+    let user;
+    try {
+      user = await supabaseQuery("users", {
+        filters: `${filterField}=eq.${encodeURIComponent(input)}`,
+        single: true,
+      });
+    } catch {
+      set.status = 401;
+      return { error: "Username/email atau password salah." };
+    }
+
+    if (!user) {
+      set.status = 401;
+      return { error: "Username/email atau password salah." };
+    }
+
+    // Verify password with bcrypt
+    const isValid = await Bun.password.verify(password, user.password);
+    if (!isValid) {
+      set.status = 401;
+      return { error: "Username/email atau password salah." };
+    }
+
+    console.log(`✅ User logged in: ${user.username} (${user.email})`);
+
+    return {
+      success: true,
+      message: "Login berhasil!",
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role,
+      },
+    };
+  } catch (error: any) {
+    console.error("Login error:", error);
+    set.status = 500;
+    return { error: "Terjadi kesalahan server. Silakan coba lagi." };
+  }
+}, {
+  body: t.Object({
+    username: t.String(),
+    password: t.String(),
+  })
 });
 
 // GET /api/education - Educational content and tips
@@ -87,31 +176,86 @@ app.get("/api/education", () => {
   ];
 });
 
-// GET /api/history - Retrieve saved predictions
-app.get("/api/history", async () => {
-  return await loadHistory();
+// GET /api/history - Retrieve saved predictions from Supabase (per-user)
+app.get("/api/history", async ({ query, set }) => {
+  const userId = query.user_id;
+  if (!userId) {
+    set.status = 400;
+    return { error: "user_id diperlukan" };
+  }
+
+  try {
+    const predictions = await supabaseQuery("predictions", {
+      filters: `user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`,
+    });
+
+    // Map snake_case DB columns to camelCase frontend format
+    return (predictions || []).map((p: any) => ({
+      id: p.id,
+      nama: p.nama,
+      umur: p.umur,
+      jenisKelamin: p.jenis_kelamin,
+      bbAwal: p.bb_awal,
+      tbAwal: p.tb_awal,
+      bbAkhir: p.bb_akhir,
+      tbAkhir: p.tb_akhir,
+      lamaPantau: p.lama_pantau,
+      kecepatanBB: p.kecepatan_bb,
+      kecepatanTB: p.kecepatan_tb,
+      rasioBBTBAkhir: p.rasio_bb_tb_akhir,
+      lingkarKepala: p.lingkar_kepala,
+      lingkarLengan: p.lingkar_lengan,
+      zScore: p.z_score,
+      medianWHO: p.median_who,
+      minus2SD: p.minus_2sd,
+      minus3SD: p.minus_3sd,
+      stuntingLabel: p.stunting_label,
+      severity: p.severity,
+      nutritionalStatus: p.nutritional_status,
+      nutritionalLabel: p.nutritional_label,
+      status: p.status,
+      probability: p.probability,
+      tipe: p.tipe,
+      createdAt: p.created_at,
+    }));
+  } catch (error: any) {
+    console.error("Failed to fetch history:", error);
+    set.status = 500;
+    return { error: "Gagal mengambil riwayat pemeriksaan." };
+  }
 });
 
-// DELETE /api/history/:id - Delete a saved prediction
+// DELETE /api/history/:id - Delete a saved prediction from Supabase
 app.delete("/api/history/:id", async ({ params, set }) => {
   const { id } = params;
   if (!id) {
     set.status = 400;
     return { error: "ID riwayat harus disertakan" };
   }
-  
-  const history = await loadHistory();
-  const index = history.findIndex((h: any) => h.id === id);
-  
-  if (index === -1) {
-    set.status = 404;
-    return { error: "Riwayat pemeriksaan tidak ditemukan" };
+
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/predictions?id=eq.${encodeURIComponent(id)}`;
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+      },
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Supabase delete error: ${errText}`);
+    }
+
+    return { success: true, message: "Riwayat pemeriksaan berhasil dihapus", id };
+  } catch (error: any) {
+    console.error("Delete history error:", error);
+    set.status = 500;
+    return { error: "Gagal menghapus riwayat pemeriksaan." };
   }
-  
-  history.splice(index, 1);
-  await saveHistory(history);
-  
-  return { success: true, message: "Riwayat pemeriksaan berhasil dihapus", id };
 });
 
 
@@ -355,9 +499,15 @@ function classifyNutritionalStatus(weightKg: number, heightCm: number, ageMonths
 
 // POST /api/predict - Submit baby measurements and calculate stunting using WHO Z-Score
 app.post("/api/predict", async ({ body, set }) => {
-  const { nama, umur, jenisKelamin, berat, tinggi, lingkarKepala, lingkarLengan, tipe } = body;
+  const { nama, umur, jenisKelamin, berat, tinggi, lingkarKepala, lingkarLengan, tipe, user_id } = body;
   
-  // Validation: Check for positive numbers, but allow free inputs (e.g. 900 kg weight, 40 cm height)
+  // Validate user_id
+  if (!user_id) {
+    set.status = 400;
+    return { error: "user_id diperlukan untuk menyimpan data." };
+  }
+
+  // Validation: Check for positive numbers
   if (!nama || nama.trim() === "") {
     set.status = 400;
     return { error: "Nama lengkap balita harus diisi" };
@@ -399,45 +549,90 @@ app.post("/api/predict", async ({ body, set }) => {
   const probability = zScoreToRiskProbability(zScore);
   
   // Calculate -2SD and -3SD thresholds for reference
-  const minus2SD = M * (1 + L * S * (-2));  // When L=1: M + M*S*(-2) = M*(1 - 2S)
-  const minus3SD = M * (1 + L * S * (-3));  // When L=1: M*(1 - 3S)
-  
-  const predictionResult = {
-    id: crypto.randomUUID(),
-    nama,
-    umur,
-    jenisKelamin,
-    bbAwal: berat,
-    tbAwal: tinggi,
-    bbAkhir: berat,
-    tbAkhir: tinggi,
-    lamaPantau: 0,
-    kecepatanBB: 0,
-    kecepatanTB: 0,
-    rasioBBTBAkhir: parseFloat((berat / (tinggi + 0.001)).toFixed(3)),
-    lingkarKepala: lingkarKepala !== undefined && lingkarKepala !== null ? parseFloat(Number(lingkarKepala).toFixed(1)) : null,
-    lingkarLengan: lingkarLengan !== undefined && lingkarLengan !== null ? parseFloat(Number(lingkarLengan).toFixed(1)) : null,
-    // WHO Z-Score data
-    zScore: parseFloat(zScore.toFixed(2)),
-    medianWHO: parseFloat(M.toFixed(1)),
-    minus2SD: parseFloat(minus2SD.toFixed(1)),
-    minus3SD: parseFloat(minus3SD.toFixed(1)),
-    stuntingLabel,
-    status: stuntingStatus >= 1 ? 1 : 0, // 0 = Normal, 1 = Stunting/Severe Stunting
-    severity: stuntingStatus, // 0 = Normal, 1 = Stunted, 2 = Severely Stunted
-    nutritionalStatus: nutStatus,
-    nutritionalLabel: nutLabel,
-    probability: parseFloat(probability.toFixed(3)),
-    tipe: tipe || 'mandiri',
-    createdAt: new Date().toISOString()
-  };
-  
-  // Save to local history file
-  const history = await loadHistory();
-  history.unshift(predictionResult);
-  await saveHistory(history);
-  
-  return predictionResult;
+  const minus2SD = M * (1 + L * S * (-2));
+  const minus3SD = M * (1 + L * S * (-3));
+
+  const rasioBBTB = parseFloat((berat / (tinggi + 0.001)).toFixed(3));
+  const lkVal = lingkarKepala !== undefined && lingkarKepala !== null ? parseFloat(Number(lingkarKepala).toFixed(1)) : null;
+  const llVal = lingkarLengan !== undefined && lingkarLengan !== null ? parseFloat(Number(lingkarLengan).toFixed(1)) : null;
+  const zScoreRounded = parseFloat(zScore.toFixed(2));
+  const medianRounded = parseFloat(M.toFixed(1));
+  const m2sd = parseFloat(minus2SD.toFixed(1));
+  const m3sd = parseFloat(minus3SD.toFixed(1));
+  const probRounded = parseFloat(probability.toFixed(3));
+  const statusVal = stuntingStatus >= 1 ? 1 : 0;
+  const tipeVal = tipe || 'mandiri';
+
+  // Save to Supabase predictions table
+  try {
+    const dbRow = await supabaseQuery("predictions", {
+      method: "POST",
+      body: {
+        user_id,
+        nama,
+        umur,
+        jenis_kelamin: jenisKelamin,
+        bb_awal: berat,
+        tb_awal: tinggi,
+        bb_akhir: berat,
+        tb_akhir: tinggi,
+        lama_pantau: 0,
+        kecepatan_bb: 0,
+        kecepatan_tb: 0,
+        rasio_bb_tb_akhir: rasioBBTB,
+        lingkar_kepala: lkVal,
+        lingkar_lengan: llVal,
+        z_score: zScoreRounded,
+        median_who: medianRounded,
+        minus_2sd: m2sd,
+        minus_3sd: m3sd,
+        stunting_label: stuntingLabel,
+        severity: stuntingStatus,
+        nutritional_status: nutStatus,
+        nutritional_label: nutLabel,
+        status: statusVal,
+        probability: probRounded,
+        tipe: tipeVal,
+      },
+    });
+
+    const savedId = dbRow?.[0]?.id || crypto.randomUUID();
+
+    const predictionResult = {
+      id: savedId,
+      nama,
+      umur,
+      jenisKelamin,
+      bbAwal: berat,
+      tbAwal: tinggi,
+      bbAkhir: berat,
+      tbAkhir: tinggi,
+      lamaPantau: 0,
+      kecepatanBB: 0,
+      kecepatanTB: 0,
+      rasioBBTBAkhir: rasioBBTB,
+      lingkarKepala: lkVal,
+      lingkarLengan: llVal,
+      zScore: zScoreRounded,
+      medianWHO: medianRounded,
+      minus2SD: m2sd,
+      minus3SD: m3sd,
+      stuntingLabel,
+      status: statusVal,
+      severity: stuntingStatus,
+      nutritionalStatus: nutStatus,
+      nutritionalLabel: nutLabel,
+      probability: probRounded,
+      tipe: tipeVal,
+      createdAt: dbRow?.[0]?.created_at || new Date().toISOString(),
+    };
+
+    return predictionResult;
+  } catch (error: any) {
+    console.error("Failed to save prediction to Supabase:", error);
+    set.status = 500;
+    return { error: "Gagal menyimpan hasil prediksi ke database." };
+  }
 }, {
   body: t.Object({
     nama: t.String(),
@@ -447,7 +642,8 @@ app.post("/api/predict", async ({ body, set }) => {
     tinggi: t.Numeric(),
     lingkarKepala: t.Optional(t.Numeric()),
     lingkarLengan: t.Optional(t.Numeric()),
-    tipe: t.Optional(t.String())
+    tipe: t.Optional(t.String()),
+    user_id: t.String(),
   })
 });
 

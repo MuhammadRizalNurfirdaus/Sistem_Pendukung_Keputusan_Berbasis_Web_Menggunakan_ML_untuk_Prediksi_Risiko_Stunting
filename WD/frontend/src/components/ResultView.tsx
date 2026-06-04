@@ -180,6 +180,10 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
     setBulkResults([]);
 
     try {
+      // Get user_id from session
+      const authData = localStorage.getItem('auth_user');
+      const userId = authData ? JSON.parse(authData).id : '';
+
       const promises = excelData.map(async (item) => {
         try {
           const res = await fetch(`${apiUrl}/api/predict`, {
@@ -193,7 +197,8 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
               tinggi: item.tinggi,
               lingkarKepala: item.lingkarKepala,
               lingkarLengan: item.lingkarLengan,
-              tipe: 'kolektif'
+              tipe: 'kolektif',
+              user_id: userId,
             })
           });
 
