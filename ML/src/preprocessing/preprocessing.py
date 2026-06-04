@@ -78,20 +78,48 @@ def process_excel_template(file_path_or_buffer) -> pd.DataFrame:
     if len(bb_cols) == 0 or len(tb_cols) == 0:
         raise ValueError("Format Excel tidak valid. Tidak ada kolom BB atau TB.")
         
-    # 5. Ekstrak nilai awal dan akhir (Dinamis)
-    df_raw['BB_Awal'] = df_raw[bb_cols[0]]
-    df_raw['TB_Awal'] = df_raw[tb_cols[0]]
-    df_raw['BB_Akhir'] = df_raw[bb_cols[-1]]
-    df_raw['TB_Akhir'] = df_raw[tb_cols[-1]]
+    # 5. Ekstrak nilai awal, akhir, dan interval secara dinamis per baris (Menangani Bolong)
+    bb_awal_list, bb_akhir_list = [], []
+    tb_awal_list, tb_akhir_list = [], []
+    interval_list = []
     
-    # 6. Hitung rentang interval pantau
-    df_raw['Lama_Pantau_Bulan'] = len(bb_cols)
-    interval = df_raw['Lama_Pantau_Bulan'] - 1
-    interval = interval.replace(0, 1) # Fallback jika cuma 1 bulan
+    for idx, row in df_raw.iterrows():
+        # Ambil data yang tidak NaN (kosong) saja
+        bb_row = row[bb_cols].dropna()
+        tb_row = row[tb_cols].dropna()
+        
+        if len(bb_row) == 0 or len(tb_row) == 0:
+            bb_awal_list.append(0); bb_akhir_list.append(0)
+            tb_awal_list.append(0); tb_akhir_list.append(0)
+            interval_list.append(1)
+            continue
+            
+        # Cari posisi urutan bulan pertama dan terakhir yang ada datanya
+        bb_valid_indices = [bb_cols.index(col) for col in bb_row.index]
+        idx_pertama = bb_valid_indices[0]
+        idx_terakhir = bb_valid_indices[-1]
+        
+        bb_awal_list.append(bb_row.iloc[0])
+        bb_akhir_list.append(bb_row.iloc[-1])
+        tb_awal_list.append(tb_row.iloc[0])
+        tb_akhir_list.append(tb_row.iloc[-1])
+        
+        # Interval adalah selisih bulan (misal April ke Feb = 3 - 1 = 2 bulan)
+        jarak_bulan = idx_terakhir - idx_pertama
+        if jarak_bulan < 1:
+            jarak_bulan = 1 # Hindari pembagian nol
+            
+        interval_list.append(jarak_bulan)
+        
+    df_raw['BB_Awal'] = bb_awal_list
+    df_raw['TB_Awal'] = tb_awal_list
+    df_raw['BB_Akhir'] = bb_akhir_list
+    df_raw['TB_Akhir'] = tb_akhir_list
+    df_raw['Lama_Pantau_Bulan'] = interval_list
     
     # 7. Kalkulasi Feature Engineering (Kecepatan Tumbuh)
-    df_raw['Kecepatan_Tumbuh_BB'] = (df_raw['BB_Akhir'] - df_raw['BB_Awal']) / interval
-    df_raw['Kecepatan_Tumbuh_TB'] = (df_raw['TB_Akhir'] - df_raw['TB_Awal']) / interval
+    df_raw['Kecepatan_Tumbuh_BB'] = (df_raw['BB_Akhir'] - df_raw['BB_Awal']) / df_raw['Lama_Pantau_Bulan']
+    df_raw['Kecepatan_Tumbuh_TB'] = (df_raw['TB_Akhir'] - df_raw['TB_Awal']) / df_raw['Lama_Pantau_Bulan']
     df_raw['Rasio_BB_TB_Akhir'] = df_raw['BB_Akhir'] / (df_raw['TB_Akhir'] + 0.001)
     
     # 8. Filter hanya kolom fitur (Training features)
