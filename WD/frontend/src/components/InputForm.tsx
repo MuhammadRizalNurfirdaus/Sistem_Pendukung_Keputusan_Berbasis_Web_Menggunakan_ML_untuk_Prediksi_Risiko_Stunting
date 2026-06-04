@@ -105,13 +105,18 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
     setPredictionResult(null);
 
     try {
+      // Get user_id from session
+      const authData = localStorage.getItem('auth_user');
+      const userId = authData ? JSON.parse(authData).id : '';
+
       const payload = {
         nama: formData.nama,
         umur: parseFloat(formData.umur),
         jenisKelamin: formData.jenisKelamin,
         berat: parseFloat(formData.berat),
         tinggi: parseFloat(formData.tinggi),
-        tipe: 'mandiri'
+        tipe: 'mandiri',
+        user_id: userId,
       };
 
       const res = await fetch(`${apiUrl}/api/predict`, {
