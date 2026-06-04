@@ -54,10 +54,6 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
   // Selected child prediction for detail view
   const [selectedChildData, setSelectedChildData] = useState<Prediction | null>(null);
   
-  // Future projection states for bulk upload
-  const [aktifkanProyeksi, setAktifkanProyeksi] = useState(false);
-  const [targetBulanExcel, setTargetBulanExcel] = useState('3');
-  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync mode with props (e.g. if arriving from individual form submit)
@@ -86,8 +82,8 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const data = e.target?.result;
-        const wb = XLSX.read(data, { type: 'array' });
+        const bstr = e.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const rawRows: any[] = XLSX.utils.sheet_to_json(ws, { header: 1 });
@@ -97,104 +93,41 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
           return;
         }
 
-        // Parse headers. Handle both single-row headers and multi-row Posyandu month-headers
-        const row0 = Array.from(rawRows[0] || []).map(x => String(x || '').trim());
-        const row1 = Array.from(rawRows[1] || []).map(x => String(x || '').trim());
-
-        const isHeaderRow1 = row1.some(x => {
-          const lower = x.toLowerCase();
-          return lower.includes('bb') || lower.includes('tb') || lower.includes('kg') || lower.includes('cm') || lower.includes('berat') || lower.includes('tinggi');
-        });
-
-        const combinedHeaders: string[] = [];
-        let dataStartRow = 1;
-
-        if (isHeaderRow1) {
-          dataStartRow = 2;
-          const maxLen = Math.max(row0.length, row1.length);
-          for (let i = 0; i < maxLen; i++) {
-            const col0 = row0[i] || '';
-            const col1 = row1[i] || '';
-            if (col0 && col1) {
-              combinedHeaders.push(`${col0}_${col1}`.toLowerCase());
-            } else if (col0) {
-              combinedHeaders.push(col0.toLowerCase());
-            } else if (col1) {
-              combinedHeaders.push(col1.toLowerCase());
-            } else {
-              combinedHeaders.push('');
-            }
-          }
-        } else {
-          dataStartRow = 1;
-          row0.forEach(col => combinedHeaders.push(col.toLowerCase()));
-        }
+        // Parse headers (row 0) and look for columns
+        const headers = rawRows[0].map((h: any) => String(h || '').trim().toLowerCase());
 
         const findColIndex = (aliases: string[]) => {
-          return combinedHeaders.findIndex((h) => aliases.some(alias => h.includes(alias)));
+          return headers.findIndex((h: string) => aliases.some(alias => h.includes(alias)));
         };
 
         const idxNama = findColIndex(['nama', 'name', 'lengkap']);
         const idxUmur = findColIndex(['umur', 'usia', 'bulan', 'age']);
         const idxJK = findColIndex(['jenis kelamin', 'jk', 'kelamin', 'sex', 'gender']);
+        const idxBerat = findColIndex(['berat', 'bb', 'weight']);
+        const idxTinggi = findColIndex(['tinggi', 'tb', 'height', 'panjang']);
         const idxLK = findColIndex(['lingkar kepala', 'lk', 'head']);
         const idxLL = findColIndex(['lingkar lengan', 'lila', 'lengan', 'arm']);
 
-        // Find all weight and height columns to capture multi-month Posyandu sheets
-        const bbColIndices: number[] = [];
-        const tbColIndices: number[] = [];
-
-        combinedHeaders.forEach((h, idx) => {
-          if (h.includes('bb') || h.includes('berat') || h.includes('weight')) {
-            bbColIndices.push(idx);
-          }
-          if (h.includes('tb') || h.includes('tinggi') || h.includes('height') || h.includes('panjang')) {
-            tbColIndices.push(idx);
-          }
-        });
-
-        if (idxNama === -1 || idxUmur === -1 || idxJK === -1 || bbColIndices.length === 0 || tbColIndices.length === 0) {
-          setExcelError('Struktur kolom Excel tidak cocok. Pastikan Excel minimal memiliki kolom: Nama, Umur (Bulan), Jenis Kelamin, serta kolom BB dan TB.');
+        if (idxNama === -1 || idxUmur === -1 || idxJK === -1 || idxBerat === -1 || idxTinggi === -1) {
+          setExcelError('Struktur kolom Excel tidak cocok. Pastikan Excel minimal memiliki kolom: Nama, Umur (Bulan), Jenis Kelamin (L/P), Berat Badan (kg), dan Tinggi Badan (cm).');
           return;
         }
 
         const parsedRows: any[] = [];
-        for (let i = dataStartRow; i < rawRows.length; i++) {
+        for (let i = 1; i < rawRows.length; i++) {
           const row = rawRows[i];
           if (!row || row.length === 0 || !row[idxNama]) continue;
 
           const jkRaw = String(row[idxJK] || '').trim().toUpperCase();
-          const jenisKelamin = (jkRaw.startsWith('L') || jkRaw.includes('LAKI') || jkRaw.includes('BOY') || jkRaw === '1') ? 'L' : 'P';
-
-          // Extract the latest non-null values for weight (BB) and height (TB)
-          let berat = 0;
-          let tinggi = 0;
-
-          for (let j = bbColIndices.length - 1; j >= 0; j--) {
-            const val = parseFloat(row[bbColIndices[j]]);
-            if (val && !isNaN(val)) {
-              berat = val;
-              break;
-            }
-          }
-
-          for (let j = tbColIndices.length - 1; j >= 0; j--) {
-            const val = parseFloat(row[tbColIndices[j]]);
-            if (val && !isNaN(val)) {
-              tinggi = val;
-              break;
-            }
-          }
-
-          if (!berat || !tinggi) continue;
+          const jenisKelamin = (jkRaw.startsWith('L') || jkRaw.includes('LAKI') || jkRaw.includes('BOY')) ? 'L' : 'P';
 
           parsedRows.push({
             id: i,
             nama: String(row[idxNama]).trim(),
             umur: parseFloat(row[idxUmur]),
             jenisKelamin,
-            berat,
-            tinggi,
+            berat: parseFloat(row[idxBerat]),
+            tinggi: parseFloat(row[idxTinggi]),
             lingkarKepala: idxLK !== -1 && row[idxLK] ? parseFloat(row[idxLK]) : undefined,
             lingkarLengan: idxLL !== -1 && row[idxLL] ? parseFloat(row[idxLL]) : undefined
           });
@@ -211,7 +144,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
         console.error(err);
       }
     };
-    reader.readAsArrayBuffer(file);
+    reader.readAsBinaryString(file);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -237,20 +170,10 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
     if (file) {
       parseExcelFile(file);
     }
-    // Reset file input value so that selection of the same file triggers change event again
-    e.target.value = '';
   };
 
   const handleBulkSubmit = async () => {
-    if (!excelFile) return;
-
-    if (aktifkanProyeksi) {
-      const targetVal = parseFloat(targetBulanExcel);
-      if (isNaN(targetVal) || targetVal < 1 || targetVal > 3) {
-        setBulkError('Target proyeksi harus antara 1 sampai 3 bulan');
-        return;
-      }
-    }
+    if (excelData.length === 0) return;
 
     setBulkLoading(true);
     setBulkError(null);
@@ -261,41 +184,55 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
       const authData = localStorage.getItem('auth_user');
       const userId = authData ? JSON.parse(authData).id : '';
 
-      const formData = new FormData();
-      formData.append("file", excelFile);
-      formData.append("user_id", userId);
+      const promises = excelData.map(async (item) => {
+        try {
+          const res = await fetch(`${apiUrl}/api/predict`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nama: item.nama,
+              umur: item.umur,
+              jenisKelamin: item.jenisKelamin,
+              berat: item.berat,
+              tinggi: item.tinggi,
+              lingkarKepala: item.lingkarKepala,
+              lingkarLengan: item.lingkarLengan,
+              tipe: 'kolektif',
+              user_id: userId,
+            })
+          });
 
-      if (aktifkanProyeksi) {
-        formData.append("target_bulan_kedepan", targetBulanExcel);
-      }
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            return {
+              ...item,
+              error: errData.error || `HTTP ${res.status}`
+            };
+          }
 
-      const endpoint = aktifkanProyeksi ? "/api/predict/bulk-future" : "/api/predict/bulk";
-      const res = await fetch(`${apiUrl}${endpoint}`, {
-        method: "POST",
-        body: formData,
+          const result = await res.json();
+          return {
+            ...item,
+            success: true,
+            result
+          };
+        } catch (err: any) {
+          return {
+            ...item,
+            error: err.message || 'Gagal menghubungi server'
+          };
+        }
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `HTTP ${res.status}`);
-      }
-
-      const resultData = await res.json();
-      const mapped = (resultData.data || []).map((item: any) => ({
-        id: item.id,
-        nama: item.nama,
-        success: true,
-        result: item
-      }));
-
-      setBulkResults(mapped);
+      const results = await Promise.all(promises);
+      setBulkResults(results);
 
       // Scroll to bulk results section
       setTimeout(() => {
         document.getElementById('bulk-results-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     } catch (err: any) {
-      setBulkError(err.message || 'Terjadi kesalahan sistem saat memproses data kolektif.');
+      setBulkError('Terjadi kesalahan sistem saat memproses data kolektif.');
       console.error(err);
     } finally {
       setBulkLoading(false);
@@ -606,6 +543,18 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
                   <td style={tdStyle}><strong>Tinggi Badan</strong></td>
                   <td style={tdStyle}>{activeData.tbAkhir} cm</td>
                 </tr>
+                {activeData.lingkarKepala ? (
+                  <tr style={trStyle}>
+                    <td style={tdStyle}><strong>Lingkar Kepala</strong></td>
+                    <td style={tdStyle}>{activeData.lingkarKepala} cm</td>
+                  </tr>
+                ) : null}
+                {activeData.lingkarLengan ? (
+                  <tr style={trStyle}>
+                    <td style={tdStyle}><strong>Lingkar Lengan</strong></td>
+                    <td style={tdStyle}>{activeData.lingkarLengan} cm</td>
+                  </tr>
+                ) : null}
                 <tr style={trStyle}>
                   <td style={tdStyle}><strong>Rasio BB/TB</strong></td>
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{activeData.rasioBBTBAkhir}</td>
@@ -811,61 +760,6 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
         {/* Preview Table */}
         {excelData.length > 0 && bulkResults.length === 0 && (
           <div className="glass-panel" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            
-            {/* Section: Proyeksi Masa Depan Massal */}
-            <div style={{
-              padding: '1.25rem',
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border-color)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-              marginBottom: '0.5rem'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '1.25rem' }}>🔮</span>
-                  <div>
-                    <label htmlFor="input-proyeksi-excel" style={{ fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}>Aktifkan Proyeksi Masa Depan Massal</label>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>Simulasikan pertumbuhan seluruh balita di Excel ke beberapa bulan mendatang.</p>
-                  </div>
-                </div>
-                <input 
-                  id="input-proyeksi-excel"
-                  type="checkbox" 
-                  checked={aktifkanProyeksi} 
-                  onChange={e => setAktifkanProyeksi(e.target.checked)}
-                  style={{ width: '20px', height: '20px', accentColor: 'var(--accent-blue)', cursor: 'pointer' }}
-                />
-              </div>
-
-              {aktifkanProyeksi && (
-                <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '0.5rem' }}>
-                  <div className="form-group">
-                    <label htmlFor="input-target-bulan-excel" className="form-label">Target Bulan ke Depan</label>
-                    <input 
-                      id="input-target-bulan-excel" 
-                      type="number" 
-                      className="form-input" 
-                      placeholder="Contoh: 3" 
-                      min="1" 
-                      max="3"
-                      value={targetBulanExcel} 
-                      onChange={e => setTargetBulanExcel(e.target.value)} 
-                      required 
-                    />
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Rentang proyeksi: 1 - 3 bulan ke depan</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, paddingLeft: '8px' }}>
-                      Sistem akan memproyeksikan tinggi & berat badan masa depan setiap anak di Excel berdasarkan tren kecepatan tumbuh mereka.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Pratinjau Data Impor ({excelData.length} Balita)</h3>
@@ -891,6 +785,8 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
                     <th style={{ padding: '10px 8px' }}>Umur</th>
                     <th style={{ padding: '10px 8px' }}>Berat (kg)</th>
                     <th style={{ padding: '10px 8px' }}>Tinggi (cm)</th>
+                    <th style={{ padding: '10px 8px' }}>LK (cm)</th>
+                    <th style={{ padding: '10px 8px' }}>LiLA (cm)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -901,6 +797,12 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
                       <td style={{ padding: '10px 8px' }}>{row.umur} Bln</td>
                       <td style={{ padding: '10px 8px' }}>{row.berat}</td>
                       <td style={{ padding: '10px 8px' }}>{row.tinggi}</td>
+                      <td style={{ padding: '10px 8px', color: row.lingkarKepala ? 'inherit' : 'var(--text-muted)' }}>
+                        {row.lingkarKepala ?? '-'}
+                      </td>
+                      <td style={{ padding: '10px 8px', color: row.lingkarLengan ? 'inherit' : 'var(--text-muted)' }}>
+                        {row.lingkarLengan ?? '-'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -950,14 +852,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
                 <button type="button" className="btn btn-outline" onClick={exportToCSV} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
                   📥 Ekspor ke CSV (.csv)
                 </button>
-                <button type="button" className="btn btn-primary" onClick={() => { 
-                  setExcelFile(null); 
-                  setExcelData([]); 
-                  setBulkResults([]); 
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = '';
-                  }
-                }}>
+                <button type="button" className="btn btn-primary" onClick={() => { setExcelFile(null); setExcelData([]); setBulkResults([]); }}>
                   Periksa Berkas Lain
                 </button>
               </div>
@@ -968,12 +863,12 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
                     <th style={{ padding: '12px 8px' }}>Nama</th>
-                    <th style={{ padding: '12px 8px' }}>{aktifkanProyeksi ? 'Umur Proyeksi' : 'Umur'}</th>
+                    <th style={{ padding: '12px 8px' }}>Umur</th>
                     <th style={{ padding: '12px 8px' }}>JK</th>
-                    <th style={{ padding: '12px 8px' }}>{aktifkanProyeksi ? 'Est. BB/TB' : 'BB/TB'}</th>
+                    <th style={{ padding: '12px 8px' }}>BB/TB</th>
                     <th style={{ padding: '12px 8px' }}>Z-Score (HAZ)</th>
-                    <th style={{ padding: '12px 8px' }}>{aktifkanProyeksi ? 'Est. Status Tinggi' : 'Status Tinggi (WHO)'}</th>
-                    <th style={{ padding: '12px 8px' }}>{aktifkanProyeksi ? 'Est. Status Gizi' : 'Status Gizi (WHO)'}</th>
+                    <th style={{ padding: '12px 8px' }}>Status Tinggi (WHO)</th>
+                    <th style={{ padding: '12px 8px' }}>Status Gizi (WHO)</th>
                     <th style={{ padding: '12px 8px', textAlign: 'right' }}>Aksi</th>
                   </tr>
                 </thead>

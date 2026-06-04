@@ -1,0 +1,10 @@
+#!/bin/sh
+'''exec' /home/rizal/MyProject/Pijak/Sistem_Pendukung_Keputusan_Berbasis_Web_Menggunakan_Machine_Learning_untuk_Prediksi_Risiko_Stunting_pada_Anak/ML/venv/bin/python3.12 "$0" "$@"
+' '''
+# -*- coding: utf-8 -*-
+import re
+import sys
+from pip._internal.cli.main import main
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(main())
