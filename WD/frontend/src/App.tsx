@@ -155,11 +155,22 @@ function App() {
     setActivePage(page as PageName);
     if (data !== undefined) {
       setActiveResult(data);
+      if (data && data.id) {
+        setHistory(prevHistory => {
+          const index = prevHistory.findIndex(item => item.id === data.id);
+          if (index > -1) {
+            const newHistory = [...prevHistory];
+            const [selected] = newHistory.splice(index, 1);
+            return [selected, ...newHistory];
+          }
+          return prevHistory;
+        });
+      }
     } else {
       setActiveResult(null);
     }
-    // Re-fetch history when going to dashboard
-    if (page === 'dashboard') {
+    // Re-fetch history when going to dashboard ONLY if data is not specified
+    if (page === 'dashboard' && data === undefined) {
       fetchHistory();
     }
     // Close sidebar on mobile

@@ -165,9 +165,23 @@ async def predict_bulk(file: UploadFile = File(...)):
             nama_col = [c for c in df_raw.columns if 'NAMA' in c.upper()]
             nama = df_raw.iloc[i][nama_col[0]] if nama_col else f"Anak {i+1}"
             
+            u_bulan = df_fitur.iloc[i]['Umur (Bulan)']
+            jk = df_fitur.iloc[i]['Jenis Kelamin']
+            bb_aw = df_fitur.iloc[i]['BB_Awal']
+            tb_aw = df_fitur.iloc[i]['TB_Awal']
+            bb_ak = df_fitur.iloc[i]['BB_Akhir']
+            tb_ak = df_fitur.iloc[i]['TB_Akhir']
+            l_pantau = df_fitur.iloc[i]['Lama_Pantau_Bulan']
+
             hasil_list.append({
                 "nama": str(nama),
-                "umur_bulan": int(df_fitur.iloc[i]['Umur (Bulan)']),
+                "umur_bulan": int(u_bulan) if not pd.isna(u_bulan) else 0,
+                "jenis_kelamin": "L" if (not pd.isna(jk) and int(jk) == 1) else "P",
+                "bb_awal": float(bb_aw) if not pd.isna(bb_aw) else 0.0,
+                "tb_awal": float(tb_aw) if not pd.isna(tb_aw) else 0.0,
+                "bb_akhir": float(bb_ak) if not pd.isna(bb_ak) else 0.0,
+                "tb_akhir": float(tb_ak) if not pd.isna(tb_ak) else 0.0,
+                "lama_pantau_bulan": int(l_pantau) if not pd.isna(l_pantau) else 1,
                 "hasil_prediksi": prediksi
             })
             
@@ -209,10 +223,29 @@ async def predict_bulk_future(
             nama_col = [c for c in df_raw.columns if 'NAMA' in c.upper()]
             nama = df_raw.iloc[i][nama_col[0]] if nama_col else f"Anak {i+1}"
             
+            u_sim = df_future.iloc[i]['Umur (Bulan)']
+            jk = df_current.iloc[i]['Jenis Kelamin']
+            bb_aw = df_current.iloc[i]['BB_Awal']
+            tb_aw = df_current.iloc[i]['TB_Awal']
+            bb_ak = df_current.iloc[i]['BB_Akhir']
+            tb_ak = df_current.iloc[i]['TB_Akhir']
+            l_pantau = df_current.iloc[i]['Lama_Pantau_Bulan']
+            u_bulan = df_current.iloc[i]['Umur (Bulan)']
+            est_tb = df_future.iloc[i]['TB_Akhir']
+            est_bb = df_future.iloc[i]['BB_Akhir']
+
             hasil_list.append({
                 "nama": str(nama),
-                "umur_simulasi_bulan": int(df_future.iloc[i]['Umur (Bulan)']),
-                "estimasi_tb": round(float(df_future.iloc[i]['TB_Akhir']), 2),
+                "umur_simulasi_bulan": int(u_sim) if not pd.isna(u_sim) else 0,
+                "jenis_kelamin": "L" if (not pd.isna(jk) and int(jk) == 1) else "P",
+                "bb_awal": float(bb_aw) if not pd.isna(bb_aw) else 0.0,
+                "tb_awal": float(tb_aw) if not pd.isna(tb_aw) else 0.0,
+                "bb_akhir": float(bb_ak) if not pd.isna(bb_ak) else 0.0,
+                "tb_akhir": float(tb_ak) if not pd.isna(tb_ak) else 0.0,
+                "lama_pantau_bulan": int(l_pantau) if not pd.isna(l_pantau) else 1,
+                "umur_bulan": int(u_bulan) if not pd.isna(u_bulan) else 0,
+                "estimasi_tb": round(float(est_tb), 2) if not pd.isna(est_tb) else 0.0,
+                "estimasi_bb": round(float(est_bb), 2) if not pd.isna(est_bb) else 0.0,
                 "hasil_prediksi_masa_depan": prediksi
             })
             
