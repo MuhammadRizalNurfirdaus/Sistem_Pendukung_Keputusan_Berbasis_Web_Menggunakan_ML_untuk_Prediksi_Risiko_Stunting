@@ -1,0 +1,17 @@
+# Konfigurasi Prometheus untuk Stunting ML API
+# File ini mengatur Prometheus agar mengambil (scrape) data metrik
+# dari endpoint /metrics pada FastAPI server.
+
+global:
+  scrape_interval: 15s          # Ambil data setiap 15 detik
+  evaluation_interval: 15s      # Evaluasi rules setiap 15 detik
+
+scrape_configs:
+  # Job untuk monitoring Stunting ML API
+  - job_name: 'stunting-ml-api'
+    metrics_path: '/metrics'     # Endpoint Prometheus di FastAPI
+    static_configs:
+      - targets: ['host.docker.internal:8000']   # Akses FastAPI dari dalam Docker
+        labels:
+          app: 'stunting-ml'
+          environment: 'development'
