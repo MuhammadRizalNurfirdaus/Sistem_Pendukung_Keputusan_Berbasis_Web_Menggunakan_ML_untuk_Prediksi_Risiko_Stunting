@@ -1,0 +1,19 @@
+# --- REST API Server (Render) ---
+fastapi==0.115.8
+uvicorn==0.34.0
+python-multipart==0.0.20
+pydantic==2.10.6
+
+# --- Data Processing ---
+pandas==2.3.3
+numpy==2.4.6
+openpyxl==3.1.5
+
+# --- Machine Learning (Core Only) ---
+scikit-learn==1.8.0
+joblib==1.5.3
+
+# --- Catatan ---
+# File ini digunakan khusus untuk Production Server (Render.com)
+# Library berat seperti mlflow, matplotlib, dan seaborn sengaja dihapus
+# agar server gratisan tidak kehabisan RAM.

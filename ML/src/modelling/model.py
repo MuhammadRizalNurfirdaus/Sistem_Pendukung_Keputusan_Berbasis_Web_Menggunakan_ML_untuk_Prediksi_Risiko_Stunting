@@ -1,40 +1,25 @@
 import os
-import mlflow.sklearn
+import joblib
 import pandas as pd
 from ..preprocessing.preprocessing import preprocess_data_anak
 
-# Coba melacak path root ML (untuk menemukan mlruns)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-MLRUNS_DIR = os.path.join(BASE_DIR, "mlruns")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "model.pkl")
 
 class StuntingPredictor:
     def __init__(self):
         self.model = None
-        # Set tracking URI agar mlflow tahu dimana mengambil datanya
-        mlflow.set_tracking_uri(f"file:{MLRUNS_DIR}")
         
     def load_model(self):
-        """Memuat model terbaru dan terbaik dari eksperimen MLflow."""
+        """Memuat model terbaik dari file PKL (Tanpa MLflow)."""
         if self.model is None:
+            if not os.path.exists(MODEL_PATH):
+                raise FileNotFoundError(f"Model file tidak ditemukan di {MODEL_PATH}. Pastikan Anda sudah mengekstrak modelnya.")
             try:
-                # Mengambil eksperimen
-                experiment = mlflow.get_experiment_by_name('Stunting_Model_Experiment')
-                if not experiment:
-                    raise Exception("Eksperimen 'Stunting_Model_Experiment' tidak ditemukan. Pastikan mlruns tersedia.")
-                
-                # Mengambil run terbaru
-                runs = mlflow.search_runs(experiment_ids=[experiment.experiment_id], order_by=['start_time DESC'])
-                if runs.empty:
-                    raise Exception("Tidak ada history run di eksperimen tersebut.")
-                    
-                latest_run_id = runs.iloc[0].run_id
-                model_uri = f"runs:/{latest_run_id}/dynamic_rf_model"
-                
-                # Memuat model scikit-learn
-                self.model = mlflow.sklearn.load_model(model_uri)
-                print(f"Model berhasil dimuat dari Run ID: {latest_run_id}")
+                self.model = joblib.load(MODEL_PATH)
+                print("Model berhasil dimuat dari file PKL.")
             except Exception as e:
-                print(f"Gagal memuat model: {e}")
+                print(f"Gagal memuat model PKL: {e}")
                 raise e
         return self.model
 
