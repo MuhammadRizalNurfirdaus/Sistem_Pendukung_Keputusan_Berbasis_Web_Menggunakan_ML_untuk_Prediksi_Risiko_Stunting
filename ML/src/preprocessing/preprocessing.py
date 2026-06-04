@@ -64,6 +64,16 @@ def process_excel_template(file_path_or_buffer) -> pd.DataFrame:
     # 2. Ratakan nama kolom (hilangkan 'Unnamed')
     df_raw.columns = [f'{col[0]}_{col[1]}' if 'Unnamed' not in col[1] else col[0] for col in df_raw.columns]
     
+    # 2.5 Hapus baris kosong di mana kolom nama tidak valid
+    nama_cols = [c for c in df_raw.columns if 'NAMA' in c.upper()]
+    if nama_cols:
+        df_raw = df_raw.dropna(subset=[nama_cols[0]])
+        df_raw = df_raw[df_raw[nama_cols[0]].astype(str).str.strip().str.lower() != 'nan']
+        df_raw = df_raw[df_raw[nama_cols[0]].astype(str).str.strip() != '']
+        # Reset index agar index iterable cocok dengan length
+        df_raw = df_raw.reset_index(drop=True)
+
+    
     # 3. Encoding Jenis Kelamin
     if 'Jenis Kelamin' in df_raw.columns:
         # Hati-hati dengan spasi dan format tidak konsisten
