@@ -1,11 +1,22 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
 import io
+import time
 
 from src.modelling.model import StuntingPredictor
 from src.preprocessing.preprocessing import process_excel_template, project_future_growth
+from src.monitoring.metrics import (
+    record_request,
+    record_error,
+    record_prediction,
+    record_bulk_predictions,
+    observe_duration,
+    get_metrics,
+    get_content_type,
+    start_system_metrics_collector,
+)
 
 app = FastAPI(
     title="Stunting Prediction API",
@@ -21,6 +32,58 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# =====================================================
+# MIDDLEWARE MONITORING: Pencatat Otomatis untuk Setiap Request
+# =====================================================
+@app.middleware("http")
+async def prometheus_middleware(request: Request, call_next):
+    """
+    Middleware yang otomatis mencatat:
+    - Jumlah request per endpoint (Metrik 1)
+    - Durasi/latency per request (Metrik 2)
+    - Error rate jika status >= 400 (Metrik 3)
+    """
+    # Abaikan endpoint /metrics dan /docs agar tidak mencemari data
+    path = request.url.path
+    if path in ("/metrics", "/docs", "/openapi.json", "/redoc", "/favicon.ico"):
+        response = await call_next(request)
+        return response
+
+    # Catat request masuk (Metrik 1)
+    endpoint_label = path.replace("/api/predict/", "").replace("/", "_") or "root"
+    record_request(endpoint=endpoint_label, method=request.method)
+
+    # Ukur durasi (Metrik 2)
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+    except Exception:
+        # Catat error 500 jika ada exception tak tertangkap (Metrik 3)
+        record_error(endpoint=endpoint_label, status_code=500)
+        raise
+
+    duration = time.time() - start_time
+    from src.monitoring.metrics import REQUEST_DURATION
+    REQUEST_DURATION.labels(endpoint=endpoint_label).observe(duration)
+
+    # Catat error jika status >= 400 (Metrik 3)
+    if response.status_code >= 400:
+        record_error(endpoint=endpoint_label, status_code=response.status_code)
+
+    return response
+
+
+# =====================================================
+# STARTUP EVENT: Jalankan Collector CPU/RAM di Background
+# =====================================================
+@app.on_event("startup")
+def on_startup():
+    """Memulai background thread untuk monitoring CPU & RAM (Metrik 5)."""
+    start_system_metrics_collector(interval_seconds=5)
+    print("[Monitoring] Background collector CPU/RAM sudah berjalan (interval: 5 detik).")
+
 
 # Inisialisasi Model AI
 try:
@@ -49,12 +112,29 @@ class FutureProjectionData(BaseModel):
     lama_pantau_bulan: int
     target_bulan_kedepan: int
 
+
+# =====================================================
+# ENDPOINT /metrics — Prometheus Scrape Target
+# =====================================================
+@app.get("/metrics")
+def metrics_endpoint():
+    """Endpoint yang di-scrape oleh Prometheus untuk mengambil semua metrik."""
+    return Response(
+        content=get_metrics(),
+        media_type=get_content_type()
+    )
+
+
 # 3. Endpoint 1: Cek Cepat 1 Anak (Kalkulator)
 @app.post("/api/predict/single")
 def predict_single(data: SingleChildData):
     try:
         data_dict = data.dict()
         hasil = predictor.predict(data_dict)
+
+        # Catat hasil prediksi ke Prometheus (Metrik 4)
+        record_prediction(hasil["status_teks"])
+
         return hasil
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -74,6 +154,9 @@ async def predict_bulk(file: UploadFile = File(...)):
         
         # Prediksi Massal menggunakan model
         hasil_prediksi = predictor.predict_bulk(df_fitur)
+
+        # Catat semua hasil prediksi ke Prometheus (Metrik 4)
+        record_bulk_predictions(hasil_prediksi)
         
         # Gabungkan hasil prediksi dengan data asli untuk dikembalikan ke frontend
         hasil_list = []
@@ -116,6 +199,9 @@ async def predict_bulk_future(
         
         # 3. Prediksi Massal menggunakan model
         hasil_prediksi = predictor.predict_bulk(df_future)
+
+        # Catat semua hasil prediksi ke Prometheus (Metrik 4)
+        record_bulk_predictions(hasil_prediksi)
         
         # 4. Gabungkan hasil prediksi dengan data asli untuk dikembalikan
         hasil_list = []
@@ -160,6 +246,9 @@ def predict_future(data: FutureProjectionData):
         else:
             status = "BERISIKO STUNTING"
             pesan = f"Simulasi {target_bulan} bulan ke depan: BERISIKO STUNTING! Anak butuh intervensi gizi sekarang."
+
+        # Catat hasil prediksi ke Prometheus (Metrik 4)
+        record_prediction(status)
             
         return {
             "umur_simulasi": int(df_future.iloc[0]['Umur (Bulan)']),
