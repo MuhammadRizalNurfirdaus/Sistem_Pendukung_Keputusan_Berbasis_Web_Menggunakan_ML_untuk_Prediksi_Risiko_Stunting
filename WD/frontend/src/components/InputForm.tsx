@@ -21,6 +21,10 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  
+  // Future Projection state
+  const [aktifkanSimulasi, setAktifkanSimulasi] = useState(false);
+  const [targetBulan, setTargetBulan] = useState('3');
 
   // Sync state if initialData changes (e.g. from Dashboard Detail)
   React.useEffect(() => {
@@ -33,6 +37,8 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
         berat: initialData.bbAkhir?.toString() || initialData.berat?.toString() || '',
         tinggi: initialData.tbAkhir?.toString() || initialData.tinggi?.toString() || ''
       });
+      setAktifkanSimulasi((initialData.lamaPantau || 0) > 0);
+      setTargetBulan((initialData.lamaPantau || 0) > 0 ? initialData.lamaPantau.toString() : '3');
       // Scroll to result section after rendering
       setTimeout(() => {
         document.getElementById('prediction-result-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -40,6 +46,8 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
     } else {
       // Clear if navigating to empty input
       setPredictionResult(null);
+      setAktifkanSimulasi(false);
+      setTargetBulan('3');
       setFormData({
         nama: '',
         umur: '',
@@ -85,9 +93,12 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
       errors.tinggi = 'Tinggi badan harus berupa angka lebih besar dari 0';
     }
 
-
-
-
+    if (aktifkanSimulasi) {
+      const targetVal = parseFloat(targetBulan);
+      if (isNaN(targetVal) || targetVal < 1 || targetVal > 3) {
+        errors.targetBulan = 'Target proyeksi harus antara 1 sampai 3 bulan';
+      }
+    }
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -109,17 +120,22 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
       const authData = localStorage.getItem('auth_user');
       const userId = authData ? JSON.parse(authData).id : '';
 
-      const payload = {
+      const payload: any = {
         nama: formData.nama,
         umur: parseFloat(formData.umur),
         jenisKelamin: formData.jenisKelamin,
         berat: parseFloat(formData.berat),
         tinggi: parseFloat(formData.tinggi),
-        tipe: 'mandiri',
+        tipe: aktifkanSimulasi ? 'simulasi' : 'mandiri',
         user_id: userId,
       };
 
-      const res = await fetch(`${apiUrl}/api/predict`, {
+      if (aktifkanSimulasi) {
+        payload.target_bulan_kedepan = parseFloat(targetBulan);
+      }
+
+      const endpoint = aktifkanSimulasi ? '/api/predict/future' : '/api/predict/single';
+      const res = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -246,7 +262,60 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
             </div>
           </div>
 
+          {/* Section: Simulasi Masa Depan */}
+          <div style={{
+            margin: '1rem 0',
+            padding: '1.25rem',
+            borderRadius: 'var(--radius-md)',
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid var(--border-color)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '1.25rem' }}>🔮</span>
+                <div>
+                  <label htmlFor="input-simulasi" style={{ fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}>Aktifkan Simulasi Masa Depan</label>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>Proyeksikan pertumbuhan dan risiko stunting anak di bulan mendatang.</p>
+                </div>
+              </div>
+              <input 
+                id="input-simulasi"
+                type="checkbox" 
+                checked={aktifkanSimulasi} 
+                onChange={e => setAktifkanSimulasi(e.target.checked)}
+                style={{ width: '20px', height: '20px', accentColor: 'var(--accent-blue)', cursor: 'pointer' }}
+              />
+            </div>
 
+            {aktifkanSimulasi && (
+              <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '0.5rem' }}>
+                <div className="form-group">
+                  <label htmlFor="input-target-bulan" className="form-label">Target Bulan ke Depan</label>
+                  <input 
+                    id="input-target-bulan" 
+                    type="number" 
+                    className="form-input" 
+                    placeholder="Contoh: 3" 
+                    min="1" 
+                    max="3"
+                    value={targetBulan} 
+                    onChange={e => setTargetBulan(e.target.value)} 
+                    required 
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Rentang proyeksi: 1 - 3 bulan ke depan</span>
+                  {validationErrors.targetBulan && <span style={{ color: 'var(--accent-coral)', fontSize: '0.8rem', marginTop: '4px', fontWeight: 600, display: 'block' }}>{validationErrors.targetBulan}</span>}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, paddingLeft: '8px' }}>
+                    Sistem akan mensimulasikan penambahan tinggi dan berat badan anak berdasarkan <strong>rata-rata kecepatan tumbuh medis</strong> untuk mengklasifikasikan risiko di masa depan.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Info Box */}
           <div style={{

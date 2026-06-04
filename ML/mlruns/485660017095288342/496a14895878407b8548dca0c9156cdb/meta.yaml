@@ -1,0 +1,14 @@
+artifact_uri: file:///home/rizal/MyProject/Pijak/Sistem_Pendukung_Keputusan_Berbasis_Web_Menggunakan_Machine_Learning_untuk_Prediksi_Risiko_Stunting_pada_Anak/ML/mlruns/485660017095288342/496a14895878407b8548dca0c9156cdb/artifacts
+end_time: 1780559644963
+entry_point_name: ''
+experiment_id: '485660017095288342'
+lifecycle_stage: active
+run_id: 496a14895878407b8548dca0c9156cdb
+run_name: RF_Dynamic_Features
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1780559640489
+status: 3
+tags: []
+user_id: rizal
