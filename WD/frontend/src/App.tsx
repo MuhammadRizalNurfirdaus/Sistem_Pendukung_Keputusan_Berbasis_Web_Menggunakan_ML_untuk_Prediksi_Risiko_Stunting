@@ -6,7 +6,17 @@ import { ResultView } from './components/ResultView';
 import { Education } from './components/Education';
 import { AuthPage } from './components/AuthPage';
 
-const API_URL = 'http://localhost:3010';
+const getApiUrl = () => {
+  const { hostname } = window.location;
+  if (hostname.includes('devtunnels.ms')) {
+    // Dynamically map the frontend devtunnel port to the backend devtunnel port (3010)
+    const backendHostname = hostname.replace(/-5173|-5174|-5175/, '-3010');
+    return `https://${backendHostname}`;
+  }
+  return 'http://localhost:3010';
+};
+
+const API_URL = getApiUrl();
 
 interface AuthUser {
   id: string;
