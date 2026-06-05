@@ -3,8 +3,8 @@
 /WD/frontend/dist/
 /WD/backend/node_modules/
 /WD/frontend/node_modules/
+/ML/mlruns/
+/ML/__pycache__/
+/ML/venv/
 .venv/
 venv/
-
-# Ignore ML directory on wd branch
-/ML/
