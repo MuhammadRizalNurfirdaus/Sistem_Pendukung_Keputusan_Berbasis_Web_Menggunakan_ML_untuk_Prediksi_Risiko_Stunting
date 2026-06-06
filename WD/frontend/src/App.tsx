@@ -400,7 +400,7 @@ function App() {
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: '12px' }}>
             Sistem Pendukung Keputusan Berbasis Web — Random Forest ML Pipeline.
           </p>
-          <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>v1.0 • Kelompok Pijak © 2026</p>
+          <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>v2.3.0 • Kelompok Pijak © 2026</p>
         </div>
       </aside>
 
