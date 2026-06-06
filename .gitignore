@@ -8,3 +8,7 @@
 /ML/venv/
 .venv/
 venv/
+
+# Rewrite history scripts
+rewrite_history.sh
+rewrite_authors.sh
