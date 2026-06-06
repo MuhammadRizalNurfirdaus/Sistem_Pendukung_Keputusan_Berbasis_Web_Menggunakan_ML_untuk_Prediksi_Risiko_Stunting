@@ -12,3 +12,6 @@ venv/
 # Rewrite history scripts
 rewrite_history.sh
 rewrite_authors.sh
+fix_bayu_email.sh
+attribution_kimakimman.sh
+precise_attribution.sh
