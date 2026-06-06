@@ -398,7 +398,7 @@ function App() {
           </button>
 
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: '12px' }}>
-            Sistem Pendukung Keputusan Berbasis Web — Random Forest ML Pipeline.
+            Sistem Pendukung Keputusan Berbasis Web — Prediksi Risiko Stunting Balita di Posyandu Mawar Manis.
           </p>
           <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>v2.3.0 • Kelompok Pijak © 2026</p>
         </div>
