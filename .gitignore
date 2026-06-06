@@ -11,3 +11,4 @@ venv/
 *.sh
 precise_attribution.sh
 rewrite_history.sh
+final_attribution.sh
