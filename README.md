@@ -161,3 +161,39 @@ Pastikan Anda sudah menginstal:
    uvicorn main:app --reload --port 8000
    ```
    * Swagger dokumentasi interaktif dapat diakses di [http://localhost:8000/docs](http://localhost:8000/docs).
+
+---
+
+## 📅 Riwayat Versi & Log Perubahan (Changelog)
+
+### v2.3.0 (Juni 2026) — Rilis Stabilitas & Peningkatan DevTunnel [Terbaru]
+- **Resolusi DevTunnel Dinamis**: Menambahkan deteksi otomatis dan resolusi URL API backend secara dinamis berdasarkan hostname DevTunnel yang digunakan untuk pengujian remote/seluler.
+- **Pembersihan Repositori**: Restrukturisasi branch kerja git (`wd` dan `ml`) menggunakan mekanisme git worktree/ignore terpisah untuk menghindari konflik pelacakan file.
+- **Stabilitas**: Perbaikan *glitch* minor pada visualisasi kurva pertumbuhan dan penanganan response API.
+
+### v2.2.0 (Juni 2026) — Autentikasi Pengguna & Keamanan Data
+- **Sistem Autentikasi Kader**: Implementasi fitur pendaftaran dan masuk log (login/register) berbasis sesi untuk para kader posyandu.
+- **Relasi Riwayat**: Setiap riwayat prediksi stunting dan status gizi kini disimpan secara terintegrasi dan berasosiasi langsung dengan data kader yang terautentikasi.
+
+### v2.1.0 (Juni 2026) — Pemantauan Sistem & Kecerdasan Buatan Tingkat Lanjut
+- **Observability (Prometheus + Grafana)**: Integrasi monitoring server dengan melacak 5 metrik utama: jumlah permintaan (request count), latensi API, tingkat error (error rate), distribusi prediksi status, dan penggunaan memori/CPU.
+- **Generasi Data Sintetis**: Penambahan modul generator data sintetis berbasis aturan (*rule-based synthetic data generator*) dan pembersihan label gizi mentah.
+- **Endpoint Masa Depan Massal**: Implementasi endpoint `/api/predict/bulk-future` untuk proyeksi stunting secara massal berbasis data time-series.
+
+### v2.0.0 (Juni 2026) — Arsitektur Full-Stack & Dasbor Interaktif
+- **Dasbor Web Interaktif**: Inisialisasi struktur frontend React dengan visualisasi grafik pertumbuhan WHO berbasis garis referensi standar deviasi (-3 SD, -2 SD, Median).
+- **Backend Elysia.js + Bun**: Migrasi backend utama web ke Elysia.js yang berjalan di atas runtime Bun dengan database JSON lokal yang cepat.
+- **Pemulihan Data**: Fitur restorasi input otomatis berdasarkan data riwayat penimbangan sebelumnya.
+
+### v1.2.0 (Juni 2026) — Integrasi Import/Export Excel & Ekstrapolasi
+- **Bulk Excel Processing**: Penambahan fungsionalitas unduh template Excel dan impor data massal untuk mempermudah tugas kader Posyandu.
+- **Simulasi Ekstrapolasi Masa Depan**: Penambahan algoritma simulasi proyeksi pertumbuhan tinggi/berat badan balita beberapa bulan ke depan berdasarkan parameter *Growth Velocity*.
+
+### v1.1.0 (Mei 2026) — Pipeline Modelling & REST API FastAPI
+- **FastAPI Production Serving**: Inisialisasi server API FastAPI Python untuk serving model machine learning secara real-time.
+- **Feature Engineering & Preprocessing**: Penyelesaian modul visualisasi EDA (Exploratory Data Analysis), modul prapemrosesan data, serta modul modelling terstruktur di dalam folder `src/`.
+
+### v1.0.0 (Mei 2026) — Inisialisasi Eksperimen & Baseline Model
+- **Random Forest Classifier**: Pengembangan model prediksi stunting awal menggunakan algoritma Random Forest Classifier.
+- **Integrasi MLflow**: Pelacakan siklus eksperimen, metrik akurasi/recall, dan parameter model menggunakan MLflow Tracking System.
+- **Inisialisasi Repositori**: Setup awal repositori, pembersihan anomali data awal, dan unggahan dataset mentah.
