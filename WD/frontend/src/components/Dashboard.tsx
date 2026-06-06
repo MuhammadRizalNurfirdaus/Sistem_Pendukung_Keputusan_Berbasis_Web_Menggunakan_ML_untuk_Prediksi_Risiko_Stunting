@@ -37,16 +37,11 @@ interface DashboardProps {
   onDeleteHistory: (id: string) => Promise<void>;
 }
 
-
-
 export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNavigate, onDeleteHistory }) => {
   const [showConfirmModal, setShowConfirmModal] = React.useState(false);
   const [selectedIdToDelete, setSelectedIdToDelete] = React.useState<string | null>(null);
   const [selectedNameToDelete, setSelectedNameToDelete] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
-
-
-
 
   // Dynamic greeting based on current time
   const getGreeting = () => {
@@ -82,9 +77,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ history, activeChild, onNa
   // Render Growth Chart SVG dynamically using WHO LMS data and ML projection metadata
   const isSimulated = child.tipe === 'simulasi' || child.tipe === 'simulasi_kolektif';
 
-
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', isolation: 'isolate' }}>
       {/* Header Banner */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>

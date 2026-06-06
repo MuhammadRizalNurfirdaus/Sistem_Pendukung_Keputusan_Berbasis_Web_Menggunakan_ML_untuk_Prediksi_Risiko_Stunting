@@ -151,11 +151,6 @@ function getLMS(ageMonths: number, sex: "L" | "P"): [number, number, number] {
   ];
 }
 
-// ─── Isolated Growth Bar Chart Component ───
-// hoveredBar state lives HERE, not in Dashboard.
-// React.memo prevents re-render when Dashboard's other state changes (modal, delete, etc.)
-// This fixes the DOM duplication bug caused by mass re-renders on hover.
-
 interface ChartChildData {
   nama: string;
   umur: number;
@@ -172,7 +167,6 @@ interface GrowthBarChartProps {
 }
 
 export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child, isStunting, isSimulated }) => {
-  // ── LOCAL hover state ── only THIS component re-renders on hover, not Dashboard
   const [hoveredBar, setHoveredBar] = React.useState<{
     type: 'who' | 'child' | 'proj';
     val: number;
@@ -180,19 +174,33 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
     whoMedian: number;
   } | null>(null);
 
-  // Stable callback reference — avoids re-creating function on every render
   const clearHover = React.useCallback(() => setHoveredBar(null), []);
 
-  // ── Render a single bar ──
+  // Unique ID prefix for SVG gradients to avoid conflicts across instances
+  const uid = React.useId().replace(/:/g, '');
+  const gradBlue = `blueBar_${uid}`;
+  const gradGreen = `greenBar_${uid}`;
+  const gradOrange = `orangeBar_${uid}`;
+
+  // Responsive container width measurement
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = React.useState(600);
+
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      if (w > 0) setContainerWidth(w);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const renderBar = (
-    x: number,
-    y: number,
-    w: number,
-    yBase: number,
-    fillGradientId: string,
-    isProj = false,
-    onHover?: () => void,
-    isHovered = false
+    x: number, y: number, w: number, yBase: number, fillGradientId: string, isProj = false, onHover?: () => void, isHovered = false
   ) => {
     const h = yBase - y;
     if (h <= 0) return null;
@@ -200,39 +208,27 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
     return (
       <g
         style={{
-          opacity: hoveredBar ? (isHovered ? 1 : 0.45) : (isProj ? 0.75 : 1),
+          opacity: hoveredBar ? (isHovered ? 1 : 0.45) : (isProj ? 0.85 : 1),
           cursor: 'pointer',
-          transition: 'opacity 0.15s ease-in-out'
+          transition: 'opacity 0.15s ease-in-out',
+          willChange: 'opacity' /* FIXED: Hardware acceleration khusus opacity */
         }}
         onMouseEnter={onHover}
         onMouseLeave={clearHover}
       >
-        {/* Invisible hit area to prevent hover glitches */}
+        <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} fill="transparent" />
         <rect
-          x={x - 2}
-          y={y - 4}
-          width={w + 4}
-          height={h + 8}
-          fill="transparent"
-        />
-        {/* Bar Body */}
-        <rect
-          x={x}
-          y={y}
-          width={w}
-          height={h}
-          rx={0}
-          ry={0}
+          x={x} y={y} width={w} height={h} rx={0} ry={0}
           fill={`url(#${fillGradientId})`}
-          stroke={isHovered ? "#ffffff" : (isProj ? "var(--accent-coral)" : "none")}
-          strokeWidth={isHovered ? "1.5" : (isProj ? "1" : "0")}
-          strokeDasharray={isProj && !isHovered ? "3,2" : "none"}
+          /* FIXED: Stroke tidak diubah saat hover untuk mencegah render SVG patah/glitch */
+          stroke={isProj ? "var(--accent-coral)" : "none"}
+          strokeWidth={isProj ? "1.5" : "0"}
+          strokeDasharray={isProj ? "3,2" : "none"}
         />
       </g>
     );
   };
 
-  // ── Chart Data Computation ──
   const ageEnd = child.umur;
   const duration = child.lamaPantau || 0;
   const ageStart = duration > 0 ? child.umur - duration : 0;
@@ -277,19 +273,20 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
   const padLeft = 45;
   const padRight = 20;
   const padTop = 20;
-  const padBottom = 25;
-  const chartW = 400 - padLeft - padRight;
-  const chartH = 200 - padTop - padBottom;
+  const padBottom = 30;
+  // Use measured container width for the SVG viewBox so that it renders at 1:1 pixel ratio — no stretching
+  const svgW = Math.max(400, containerWidth - 32); // account for 1rem padding on each side
+  const svgH = 220;
+  const chartW = svgW - padLeft - padRight;
+  const chartH = svgH - padTop - padBottom;
 
   const scaleX = (idx: number) => padLeft + (ages.length > 1 ? idx / (ages.length - 1) : 0.5) * chartW;
   const scaleY = (h: number) => padTop + (1 - (h - minH) / (maxH - minH)) * chartH;
 
-  // SVG paths
   const medianPoints = dataPoints.map((pt, i) => `${scaleX(i)},${scaleY(pt.whoMedian)}`).join(' L ');
   const minus2SDPoints = dataPoints.map((pt, i) => `${scaleX(i)},${scaleY(pt.whoMinus2SD)}`).join(' L ');
   const minus3SDPoints = dataPoints.map((pt, i) => `${scaleX(i)},${scaleY(pt.whoMinus3SD)}`).join(' L ');
 
-  // WHO reference zones
   const normalZonePoints = [
     ...dataPoints.map((pt, i) => `${scaleX(i)},${scaleY(pt.whoMedian)}`),
     ...dataPoints.slice().reverse().map((pt, i) => `${scaleX(dataPoints.length - 1 - i)},${scaleY(pt.whoMinus2SD)}`)
@@ -306,7 +303,6 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
     `${scaleX(0)},${padTop + chartH}`
   ].join(' ');
 
-  // Y axis tick values
   const yTicks = 4;
   const yTickValues: number[] = [];
   for (let i = 0; i < yTicks; i++) {
@@ -314,7 +310,7 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
   }
 
   return (
-    <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', isolation: 'isolate' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Grafik Perkembangan Balita (Tipe Batang)</h3>
@@ -322,7 +318,6 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
             Membandingkan tinggi badan anak ({child.nama}) dengan standar tinggi normal WHO.
           </p>
         </div>
-        {/* Clean Legend outside of SVG */}
         <div style={{ display: 'flex', gap: '0.85rem', flexWrap: 'wrap', fontSize: '0.75rem', fontWeight: 700, padding: '6px 10px', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--text-secondary)' }}>
             <span style={{ width: '10px', height: '10px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid var(--accent-green)', display: 'inline-block', borderRadius: '2px' }}></span> Area Normal (WHO)
@@ -351,7 +346,15 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
         alignItems: 'center',
         gap: '10px'
       }}>
-        <span style={{ fontSize: '1.25rem' }}>{isStunting ? '⚠️' : '✅'}</span>
+        <div style={{
+          width: '24px', height: '24px', borderRadius: '50%',
+          background: isStunting ? 'var(--accent-coral-bg)' : 'var(--accent-green-bg)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '0.85rem', fontWeight: 800, color: isStunting ? 'var(--accent-coral)' : 'var(--accent-green)',
+          flexShrink: 0
+        }}>
+          {isStunting ? '!' : '✓'}
+        </div>
         <div>
           <h5 style={{ fontSize: '0.85rem', fontWeight: 800, color: isStunting ? 'var(--accent-coral)' : 'var(--accent-green)' }}>
             {isStunting ? 'Hasil Analisis: Risiko Stunting Terdeteksi' : 'Hasil Analisis: Pertumbuhan Normal'}
@@ -374,12 +377,24 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
         display: 'flex',
         alignItems: 'center',
         gap: '12px',
-        minHeight: '62px',
-        transition: 'all var(--transition-fast)'
+        minHeight: '90px', /* FIXED: Menjaga tinggi agar grafik tidak kedorong turun */
+        transition: 'all var(--transition-fast)',
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden'
       }}>
-        <span style={{ fontSize: '1.5rem' }}>
-          {!hoveredBar ? '📊' : hoveredBar.type === 'who' ? '🟢' : hoveredBar.type === 'child' ? '🔵' : '🟠'}
-        </span>
+        {/* FIXED: Mengganti emoji dinamis dengan bentuk lingkaran warna CSS murni agar tidak memicu bug GPU browser */}
+        <div style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {!hoveredBar ? (
+            <div style={{ width: '12px', height: '12px', border: '2px solid var(--text-secondary)', borderRadius: '2px' }} />
+          ) : (
+            <div style={{
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              background: hoveredBar.type === 'who' ? 'var(--accent-green)' : hoveredBar.type === 'child' ? 'var(--accent-blue)' : 'var(--accent-coral)'
+            }} />
+          )}
+        </div>
         <div style={{ flex: 1 }}>
           {!hoveredBar ? (
             <>
@@ -414,7 +429,7 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
                       Batang Tinggi Aktual {child.nama} — Umur {roundedAge} Bulan
                     </h5>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.4 }}>
-                      Tinggi aktual anak saat penimbangan adalah <strong>{hoveredBar.val.toFixed(1)} cm</strong>. Tinggi ini <strong>{diffText}</strong> dibanding acuan standar WHO ({hoveredBar.whoMedian.toFixed(1)} cm). Status: {isBelow ? '⚠️ Perlu Perhatian' : '✅ Baik'}.
+                      Tinggi aktual anak saat penimbangan adalah <strong>{hoveredBar.val.toFixed(1)} cm</strong>. Tinggi ini <strong>{diffText}</strong> dibanding acuan standar WHO ({hoveredBar.whoMedian.toFixed(1)} cm). Status: <span style={{ color: isBelow ? 'var(--accent-coral)' : 'var(--accent-green)', fontWeight: 700 }}>{isBelow ? 'Perlu Perhatian' : 'Baik'}</span>
                     </p>
                   </>
                 );
@@ -437,21 +452,21 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
         </div>
       </div>
 
-      {/* SVG Custom Premium Chart */}
-      <div style={{ position: 'relative', width: '100%', height: '240px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', padding: '1rem' }}>
-        <svg width="100%" height="100%" viewBox="0 0 400 200" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
+      {/* SVG Custom Premium Chart — uses dynamic viewBox for 1:1 pixel rendering (no stretch) */}
+      <div ref={containerRef} style={{ position: 'relative', width: '100%', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', padding: '1rem' }}>
+        <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} style={{ display: 'block', overflow: 'visible' }}>
 
-          {/* Gradients Definitions */}
+          {/* Gradients Definitions — unique IDs per component instance */}
           <defs>
-            <linearGradient id="blueBar" x1="0%" y1="0%" x2="0%" y2="100%">
+            <linearGradient id={gradBlue} x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="var(--accent-blue)" />
               <stop offset="100%" stopColor="var(--accent-blue)" stopOpacity={0.7} />
             </linearGradient>
-            <linearGradient id="greenBar" x1="0%" y1="0%" x2="0%" y2="100%">
+            <linearGradient id={gradGreen} x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="var(--accent-green)" />
               <stop offset="100%" stopColor="var(--accent-green)" stopOpacity={0.7} />
             </linearGradient>
-            <linearGradient id="orangeBar" x1="0%" y1="0%" x2="0%" y2="100%">
+            <linearGradient id={gradOrange} x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="var(--accent-coral)" />
               <stop offset="100%" stopColor="var(--accent-coral)" stopOpacity={0.7} />
             </linearGradient>
@@ -465,7 +480,7 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
                 <line
                   x1={padLeft}
                   y1={yPos}
-                  x2={400 - padRight}
+                  x2={svgW - padRight}
                   y2={yPos}
                   stroke="var(--border-color)"
                   strokeWidth="0.8"
@@ -475,7 +490,7 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
                 <text
                   x={padLeft - 6}
                   y={yPos + 3}
-                  fontSize="8"
+                  fontSize="10"
                   fontWeight="700"
                   fill="var(--text-muted)"
                   textAnchor="end"
@@ -501,6 +516,8 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
             const isLast = i === dataPoints.length - 1;
             const isProjectedNode = isLast && isSimulated;
             const cx = scaleX(i);
+            // Dynamic bar width based on chart area and data density
+            const barW = Math.max(8, Math.min(18, chartW / ages.length * 0.25));
 
             const yBase = padTop + chartH;
             const yWho = scaleY(pt.whoMedian);
@@ -511,8 +528,7 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
               label = `${Math.round(pt.age)} Bln (ML)`;
             }
 
-            // Bar width parameters
-            const w = 12;
+            const w = barW;
 
             return (
               <g key={i}>
@@ -530,11 +546,11 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
 
                 {/* Standard WHO Bar (Green) */}
                 {renderBar(
-                  cx - 13,
+                  cx - w - 1,
                   yWho,
                   w,
                   yBase,
-                  'greenBar',
+                  gradGreen,
                   false,
                   () => setHoveredBar({ type: 'who', val: pt.whoMedian, age: pt.age, whoMedian: pt.whoMedian }),
                   hoveredBar?.type === 'who' && hoveredBar?.age === pt.age
@@ -546,7 +562,7 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
                     yChild,
                     w,
                     yBase,
-                    'orangeBar',
+                    gradOrange,
                     true,
                     () => setHoveredBar({ type: 'proj', val: pt.childHeight, age: pt.age, whoMedian: pt.whoMedian }),
                     hoveredBar?.type === 'proj' && hoveredBar?.age === pt.age
@@ -556,7 +572,7 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
                     yChild,
                     w,
                     yBase,
-                    'blueBar',
+                    gradBlue,
                     false,
                     () => setHoveredBar({ type: 'child', val: pt.childHeight, age: pt.age, whoMedian: pt.whoMedian }),
                     hoveredBar?.type === 'child' && hoveredBar?.age === pt.age
@@ -565,9 +581,9 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
 
                 {/* WHO Standard height text label */}
                 <text
-                  x={cx - 7}
-                  y={yWho - 8}
-                  fontSize="8"
+                  x={cx - w / 2 - 1}
+                  y={yWho - 10}
+                  fontSize="10"
                   fontWeight="700"
                   textAnchor="middle"
                   fill="var(--bg-primary)"
@@ -579,9 +595,9 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
                   {Math.round(pt.whoMedian)}
                 </text>
                 <text
-                  x={cx - 7}
-                  y={yWho - 8}
-                  fontSize="8"
+                  x={cx - w / 2 - 1}
+                  y={yWho - 10}
+                  fontSize="10"
                   fontWeight="700"
                   textAnchor="middle"
                   fill="var(--accent-green)"
@@ -592,9 +608,9 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
 
                 {/* Child height text label */}
                 <text
-                  x={cx + 7}
-                  y={yChild - 8}
-                  fontSize="8"
+                  x={cx + w / 2 + 1}
+                  y={yChild - 10}
+                  fontSize="10"
                   fontWeight="800"
                   textAnchor="middle"
                   fill="var(--bg-primary)"
@@ -606,9 +622,9 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
                   {pt.childHeight.toFixed(1)}
                 </text>
                 <text
-                  x={cx + 7}
-                  y={yChild - 8}
-                  fontSize="8"
+                  x={cx + w / 2 + 1}
+                  y={yChild - 10}
+                  fontSize="10"
                   fontWeight="800"
                   textAnchor="middle"
                   fill={isProjectedNode ? "var(--accent-coral)" : "var(--accent-blue)"}
@@ -620,8 +636,8 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
                 {/* X Axis Text label */}
                 <text
                   x={cx}
-                  y={padTop + chartH + 15}
-                  fontSize="8.5"
+                  y={padTop + chartH + 18}
+                  fontSize="11"
                   fontWeight={isProjectedNode ? "800" : "600"}
                   fill={isProjectedNode ? "var(--accent-coral)" : "var(--text-secondary)"}
                   textAnchor="middle"
