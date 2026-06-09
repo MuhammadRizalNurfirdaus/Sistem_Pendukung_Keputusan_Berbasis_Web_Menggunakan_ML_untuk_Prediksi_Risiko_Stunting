@@ -20,7 +20,7 @@ const getApiUrl = () => {
     return `https://${backendHostname}`;
   }
 
-  // 3. Fallback default untuk local development biasaz
+  // 3. Fallback default untuk local development biasa
   return 'http://localhost:3010';
 };
 
