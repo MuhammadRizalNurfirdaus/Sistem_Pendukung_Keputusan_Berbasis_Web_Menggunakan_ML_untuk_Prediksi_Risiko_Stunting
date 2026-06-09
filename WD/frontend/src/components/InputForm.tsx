@@ -79,18 +79,18 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
     }
 
     const umurVal = parseFloat(formData.umur);
-    if (isNaN(umurVal) || umurVal < 0) {
-      errors.umur = 'Umur harus berupa angka positif';
+    if (isNaN(umurVal) || umurVal < 0 || umurVal > 60) {
+      errors.umur = 'Umur tidak valid. Standar WHO adalah 0 - 60 bulan.';
     }
 
     const beratVal = parseFloat(formData.berat);
-    if (isNaN(beratVal) || beratVal <= 0) {
-      errors.berat = 'Berat badan harus berupa angka lebih besar dari 0';
+    if (isNaN(beratVal) || beratVal < 1.5 || beratVal > 40) {
+      errors.berat = 'Berat badan di luar batas biologis (1.5 - 40 kg).';
     }
 
     const tinggiVal = parseFloat(formData.tinggi);
-    if (isNaN(tinggiVal) || tinggiVal <= 0) {
-      errors.tinggi = 'Tinggi badan harus berupa angka lebih besar dari 0';
+    if (isNaN(tinggiVal) || tinggiVal < 35 || tinggiVal > 130) {
+      errors.tinggi = 'Tinggi badan di luar batas biologis (35 - 130 cm).';
     }
 
     if (aktifkanSimulasi) {

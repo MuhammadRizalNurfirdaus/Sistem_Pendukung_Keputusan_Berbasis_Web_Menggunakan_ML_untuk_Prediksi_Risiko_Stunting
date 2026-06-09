@@ -513,17 +513,20 @@ app.post("/api/predict/single", async ({ body, set }) => {
     set.status = 400;
     return { error: "Nama lengkap balita harus diisi" };
   }
-  if (umur === undefined || isNaN(Number(umur)) || Number(umur) < 0) {
+  const umurNum = Number(umur);
+  if (umur === undefined || isNaN(umurNum) || umurNum < 0 || umurNum > 60) {
     set.status = 400;
-    return { error: "Umur harus berupa angka positif" };
+    return { error: "Umur tidak valid. Standar balita WHO adalah 0 - 60 bulan." };
   }
-  if (berat === undefined || isNaN(Number(berat)) || Number(berat) <= 0) {
+  const beratNum = Number(berat);
+  if (berat === undefined || isNaN(beratNum) || beratNum < 1.5 || beratNum > 40) {
     set.status = 400;
-    return { error: "Berat badan harus berupa angka lebih besar dari 0" };
+    return { error: "Berat badan tidak masuk akal secara biologis (Batas wajar: 1.5 - 40 kg)." };
   }
-  if (tinggi === undefined || isNaN(Number(tinggi)) || Number(tinggi) <= 0) {
+  const tinggiNum = Number(tinggi);
+  if (tinggi === undefined || isNaN(tinggiNum) || tinggiNum < 35 || tinggiNum > 130) {
     set.status = 400;
-    return { error: "Tinggi badan harus berupa angka lebih besar dari 0" };
+    return { error: "Tinggi badan tidak masuk akal secara biologis (Batas wajar: 35 - 130 cm)." };
   }
 
   let mlPrediction = { status_code: 0, status_teks: "NORMAL", pesan: "" };
@@ -665,17 +668,20 @@ app.post("/api/predict/future", async ({ body, set }) => {
     set.status = 400;
     return { error: "Nama lengkap balita harus diisi" };
   }
-  if (umur === undefined || isNaN(Number(umur)) || Number(umur) < 0) {
+  const umurNum = Number(umur);
+  if (umur === undefined || isNaN(umurNum) || umurNum < 0 || umurNum > 60) {
     set.status = 400;
-    return { error: "Umur harus berupa angka positif" };
+    return { error: "Umur tidak valid. Standar balita WHO adalah 0 - 60 bulan." };
   }
-  if (berat === undefined || isNaN(Number(berat)) || Number(berat) <= 0) {
+  const beratNum = Number(berat);
+  if (berat === undefined || isNaN(beratNum) || beratNum < 1.5 || beratNum > 40) {
     set.status = 400;
-    return { error: "Berat badan harus berupa angka lebih besar dari 0" };
+    return { error: "Berat badan tidak masuk akal secara biologis (Batas wajar: 1.5 - 40 kg)." };
   }
-  if (tinggi === undefined || isNaN(Number(tinggi)) || Number(tinggi) <= 0) {
+  const tinggiNum = Number(tinggi);
+  if (tinggi === undefined || isNaN(tinggiNum) || tinggiNum < 35 || tinggiNum > 130) {
     set.status = 400;
-    return { error: "Tinggi badan harus berupa angka lebih besar dari 0" };
+    return { error: "Tinggi badan tidak masuk akal secara biologis (Batas wajar: 35 - 130 cm)." };
   }
 
   let mlPrediction = { 
