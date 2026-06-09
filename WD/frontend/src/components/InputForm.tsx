@@ -5,17 +5,18 @@ interface InputFormProps {
   onNavigate: (page: string, data?: any) => void;
   apiUrl: string;
   initialData?: any;
+  selectedChild?: any | null;
 }
 
-export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initialData }) => {
+export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initialData, selectedChild }) => {
   const [loading, setLoading] = useState(false);
   const [predictionResult, setPredictionResult] = useState<any>(initialData || null);
   
   // Form State
   const [formData, setFormData] = useState({
-    nama: initialData?.nama || '',
+    nama: initialData?.nama || selectedChild?.nama || '',
     umur: initialData?.umur?.toString() || '',
-    jenisKelamin: initialData?.jenisKelamin || 'L' as 'L' | 'P',
+    jenisKelamin: initialData?.jenisKelamin || selectedChild?.jenisKelamin || 'L' as 'L' | 'P',
     berat: initialData?.bbAkhir?.toString() || initialData?.berat?.toString() || '',
     tinggi: initialData?.tbAkhir?.toString() || initialData?.tinggi?.toString() || ''
   });
@@ -26,7 +27,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
   const [aktifkanSimulasi, setAktifkanSimulasi] = useState(false);
   const [targetBulan, setTargetBulan] = useState('3');
 
-  // Sync state if initialData changes (e.g. from Dashboard Detail)
+  // Sync state if initialData or selectedChild changes (e.g. from Dashboard Detail or ChildrenList)
   React.useEffect(() => {
     if (initialData) {
       setPredictionResult(initialData);
@@ -43,6 +44,17 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
       setTimeout(() => {
         document.getElementById('prediction-result-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
+    } else if (selectedChild) {
+      setPredictionResult(null);
+      setAktifkanSimulasi(false);
+      setTargetBulan('3');
+      setFormData({
+        nama: selectedChild.nama || '',
+        umur: '',
+        jenisKelamin: selectedChild.jenisKelamin || 'L',
+        berat: '',
+        tinggi: ''
+      });
     } else {
       // Clear if navigating to empty input
       setPredictionResult(null);
@@ -56,7 +68,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
         tinggi: ''
       });
     }
-  }, [initialData]);
+  }, [initialData, selectedChild]);
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -206,7 +218,17 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
 
           <div className="form-group">
             <label htmlFor="input-nama" className="form-label">Nama Lengkap Balita</label>
-            <input id="input-nama" type="text" className="form-input" placeholder="Contoh: Leo Kurniawan" value={formData.nama} onChange={e => handleChange('nama', e.target.value)} required />
+            <input 
+              id="input-nama" 
+              type="text" 
+              className="form-input" 
+              placeholder="Contoh: Leo Kurniawan" 
+              value={formData.nama} 
+              onChange={e => handleChange('nama', e.target.value)} 
+              required 
+              disabled={!!selectedChild}
+              style={{ opacity: selectedChild ? 0.75 : 1, cursor: selectedChild ? 'not-allowed' : 'text' }}
+            />
             {validationErrors.nama && <span style={{ color: 'var(--accent-coral)', fontSize: '0.8rem', marginTop: '4px', fontWeight: 600 }}>{validationErrors.nama}</span>}
           </div>
 
@@ -219,18 +241,20 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
             </div>
             <div className="form-group">
               <label className="form-label">Jenis Kelamin</label>
-              <div className="gender-switch">
+              <div className="gender-switch" style={{ opacity: selectedChild ? 0.85 : 1, cursor: selectedChild ? 'not-allowed' : 'pointer' }}>
                 <div
                   className={`gender-option ${formData.jenisKelamin === 'L' ? 'selected' : ''}`}
-                  onClick={() => handleChange('jenisKelamin', 'L')}
+                  onClick={() => !selectedChild && handleChange('jenisKelamin', 'L')}
                   id="gender-l"
+                  style={{ cursor: selectedChild ? 'not-allowed' : 'pointer' }}
                 >
                   👦 Laki-laki
                 </div>
                 <div
                   className={`gender-option ${formData.jenisKelamin === 'P' ? 'selected' : ''}`}
-                  onClick={() => handleChange('jenisKelamin', 'P')}
+                  onClick={() => !selectedChild && handleChange('jenisKelamin', 'P')}
                   id="gender-p"
+                  style={{ cursor: selectedChild ? 'not-allowed' : 'pointer' }}
                 >
                   👧 Perempuan
                 </div>
