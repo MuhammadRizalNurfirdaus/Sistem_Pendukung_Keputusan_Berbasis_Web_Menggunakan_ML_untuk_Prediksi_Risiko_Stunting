@@ -322,7 +322,7 @@ app.post("/api/children", async ({ body, set }) => {
   try {
     // Check for duplicate
     const existing = await supabaseQuery("children", {
-      filters: `user_id=eq.${encodeURIComponent(user_id)}&nama=eq.${encodeURIComponent(cleanNama)}`
+      filters: `user_id=eq.${encodeURIComponent(user_id)}&nama=ilike.${encodeURIComponent(cleanNama)}`
     });
     if (existing && existing.length > 0) {
       set.status = 400;
@@ -641,7 +641,7 @@ const ML_URL = "http://127.0.0.1:8000";
 async function getOrCreateChild(userId: string, nama: string, jenisKelamin: "L" | "P") {
   const cleanNama = nama.trim();
   const existing = await supabaseQuery("children", {
-    filters: `user_id=eq.${encodeURIComponent(userId)}&nama=eq.${encodeURIComponent(cleanNama)}`
+    filters: `user_id=eq.${encodeURIComponent(userId)}&nama=ilike.${encodeURIComponent(cleanNama)}`
   });
   if (existing && existing.length > 0) {
     return existing[0];
@@ -693,7 +693,7 @@ app.post("/api/predict/single", async ({ body, set }) => {
 
   // 2. Check for duplicate prediction
   const existing = await supabaseQuery("predictions", {
-    filters: `user_id=eq.${encodeURIComponent(user_id)}&nama=eq.${encodeURIComponent(cleanNama)}&umur=eq.${umur}&bb_akhir=eq.${berat}&tb_akhir=eq.${tinggi}`
+    filters: `user_id=eq.${encodeURIComponent(user_id)}&nama=ilike.${encodeURIComponent(cleanNama)}&umur=eq.${umur}&bb_akhir=eq.${berat}&tb_akhir=eq.${tinggi}`
   }) || [];
 
   if (existing.length > 0) {
@@ -927,7 +927,7 @@ app.post("/api/predict/future", async ({ body, set }) => {
 
   // 2. Check for duplicate prediction (simulation)
   const existing = await supabaseQuery("predictions", {
-    filters: `user_id=eq.${encodeURIComponent(user_id)}&nama=eq.${encodeURIComponent(cleanNama)}&umur=eq.${umurSimulasi}&bb_akhir=eq.${estimasiBb}&tb_akhir=eq.${estimasiTb}`
+    filters: `user_id=eq.${encodeURIComponent(user_id)}&nama=ilike.${encodeURIComponent(cleanNama)}&umur=eq.${umurSimulasi}&bb_akhir=eq.${estimasiBb}&tb_akhir=eq.${estimasiTb}`
   }) || [];
 
   if (existing.length > 0) {
@@ -1105,7 +1105,7 @@ app.post("/api/predict/bulk", async ({ body, set }) => {
 
       // Check for duplicate prediction
       const existingPredictions = await supabaseQuery("predictions", {
-        filters: `user_id=eq.${encodeURIComponent(user_id)}&nama=eq.${encodeURIComponent(cleanNama)}&umur=eq.${umur_bulan}&bb_akhir=eq.${bb_akhir}&tb_akhir=eq.${tb_akhir}`
+        filters: `user_id=eq.${encodeURIComponent(user_id)}&nama=ilike.${encodeURIComponent(cleanNama)}&umur=eq.${umur_bulan}&bb_akhir=eq.${bb_akhir}&tb_akhir=eq.${tb_akhir}`
       }) || [];
 
       if (existingPredictions.length > 0) {
@@ -1271,7 +1271,7 @@ app.post("/api/predict/bulk-future", async ({ body, set }) => {
 
       // Check for duplicate prediction (simulation)
       const existingPredictions = await supabaseQuery("predictions", {
-        filters: `user_id=eq.${encodeURIComponent(user_id)}&nama=eq.${encodeURIComponent(cleanNama)}&umur=eq.${umur_simulasi_bulan}&bb_akhir=eq.${estimasi_bb}&tb_akhir=eq.${estimasi_tb}`
+        filters: `user_id=eq.${encodeURIComponent(user_id)}&nama=ilike.${encodeURIComponent(cleanNama)}&umur=eq.${umur_simulasi_bulan}&bb_akhir=eq.${estimasi_bb}&tb_akhir=eq.${estimasi_tb}`
       }) || [];
 
       if (existingPredictions.length > 0) {
