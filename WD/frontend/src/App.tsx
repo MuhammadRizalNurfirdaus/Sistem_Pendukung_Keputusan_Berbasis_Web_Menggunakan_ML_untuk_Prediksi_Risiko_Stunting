@@ -8,11 +8,19 @@ import { AuthPage } from './components/AuthPage';
 
 const getApiUrl = () => {
   const { hostname } = window.location;
+
+  // 1. Tambahkan kondisi khusus untuk domain Cloudflare Tunnel Anda
+  if (hostname === 'stunting.rizalnurfirdaus.tech') {
+    return 'https://api-stunting.rizalnurfirdaus.tech';
+  }
+
+  // 2. Kondisi untuk VS Code Dev Tunnels (jika masih dipakai pas coding)
   if (hostname.includes('devtunnels.ms')) {
-    // Dynamically map the frontend devtunnel port to the backend devtunnel port (3010)
     const backendHostname = hostname.replace(/-5173|-5174|-5175/, '-3010');
     return `https://${backendHostname}`;
   }
+
+  // 3. Fallback default untuk local development biasaz
   return 'http://localhost:3010';
 };
 
