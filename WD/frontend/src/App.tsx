@@ -6,6 +6,7 @@ import { ResultView } from './components/ResultView';
 import { Education } from './components/Education';
 import { AuthPage } from './components/AuthPage';
 import { ChildrenList } from './components/ChildrenList';
+import { ChildDetail } from './components/ChildDetail';
 
 const getApiUrl = () => {
   const { hostname } = window.location;
@@ -63,7 +64,7 @@ interface Prediction {
   createdAt: string;
 }
 
-type PageName = 'dashboard' | 'children' | 'input' | 'predictions' | 'education';
+type PageName = 'dashboard' | 'children' | 'input' | 'predictions' | 'education' | 'child-detail';
 
 const navItems: { id: PageName; label: string; icon: React.ReactNode }[] = [
   {
@@ -83,7 +84,7 @@ const navItems: { id: PageName; label: string; icon: React.ReactNode }[] = [
   },
   {
     id: 'predictions',
-    label: 'Hasil Prediksi',
+    label: 'Analisis Kolektif',
     icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
   },
   {
@@ -105,7 +106,7 @@ function App() {
   const [activePage, setActivePage] = useState<PageName>('dashboard');
   const [history, setHistory] = useState<Prediction[]>([]);
   const [activeResult, setActiveResult] = useState<Prediction | null>(null);
-  const [selectedChildForCheck, setSelectedChildForCheck] = useState<any | null>(null);
+  const [selectedChildDetail, setSelectedChildDetail] = useState<{id: string, nama: string, jenisKelamin: 'L' | 'P'} | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
@@ -120,7 +121,7 @@ function App() {
     localStorage.removeItem('auth_user');
     setHistory([]);
     setActiveResult(null);
-    setSelectedChildForCheck(null);
+    setSelectedChildDetail(null);
     setActivePage('dashboard');
   };
 
@@ -179,29 +180,14 @@ function App() {
 
   const handleNavigate = useCallback((page: string, data?: any) => {
     setActivePage(page as PageName);
-    if (page === 'input') {
-      if (data && !data.tbAkhir) { // If it's a child record (has no tbAkhir)
-        setSelectedChildForCheck(data);
-        setActiveResult(null);
-      } else {
-        setSelectedChildForCheck(null);
-        if (data) setActiveResult(data);
-      }
+    if (page === 'child-detail' && data) {
+      setSelectedChildDetail(data);
+    } else if (page === 'input') {
+      if (data) setActiveResult(data);
+      else setActiveResult(null);
     } else {
-      setSelectedChildForCheck(null);
       if (data !== undefined) {
         setActiveResult(data);
-        if (data && data.id) {
-          setHistory(prevHistory => {
-            const index = prevHistory.findIndex(item => item.id === data.id);
-            if (index > -1) {
-              const newHistory = [...prevHistory];
-              const [selected] = newHistory.splice(index, 1);
-              return [selected, ...newHistory];
-            }
-            return prevHistory;
-          });
-        }
       } else {
         setActiveResult(null);
       }
@@ -221,10 +207,8 @@ function App() {
       case 'dashboard':
         return (
           <Dashboard 
-            history={history} 
-            activeChild={activeResult} 
             onNavigate={handleNavigate} 
-            onDeleteHistory={handleDeleteHistory} 
+            apiUrl={API_URL} 
           />
         );
       case 'children':
@@ -235,18 +219,31 @@ function App() {
           />
         );
       case 'input':
-        return <InputForm onNavigate={handleNavigate} apiUrl={API_URL} initialData={activeResult} selectedChild={selectedChildForCheck} />;
+        return <InputForm onNavigate={handleNavigate} apiUrl={API_URL} initialData={activeResult} />;
       case 'predictions':
         return <ResultView data={activeResult} onNavigate={handleNavigate} apiUrl={API_URL} />;
       case 'education':
         return <Education apiUrl={API_URL} onNavigate={handleNavigate} />;
+      case 'child-detail':
+        return selectedChildDetail ? (
+          <ChildDetail
+            childId={selectedChildDetail.id}
+            childName={selectedChildDetail.nama}
+            childGender={selectedChildDetail.jenisKelamin}
+            onNavigate={handleNavigate}
+            apiUrl={API_URL}
+          />
+        ) : (
+          <Dashboard 
+            onNavigate={handleNavigate} 
+            apiUrl={API_URL} 
+          />
+        );
       default:
         return (
           <Dashboard 
-            history={history} 
-            activeChild={activeResult} 
             onNavigate={handleNavigate} 
-            onDeleteHistory={handleDeleteHistory} 
+            apiUrl={API_URL} 
           />
         );
     }

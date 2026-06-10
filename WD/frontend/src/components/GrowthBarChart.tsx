@@ -234,7 +234,9 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
   const ageStart = duration > 0 ? child.umur - duration : 0;
 
   let ages: number[] = [];
-  if (duration > 0 && Number.isInteger(duration)) {
+  if (duration === 0) {
+    ages = [ageEnd];
+  } else if (duration > 0 && Number.isInteger(duration)) {
     for (let m = ageStart; m <= ageEnd; m++) {
       ages.push(m);
     }
@@ -247,7 +249,7 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
 
   const dataPoints: { age: number; childHeight: number; whoMedian: number; whoMinus2SD: number; whoMinus3SD: number }[] = [];
   const hBirth = child.jenisKelamin === 'L' ? 49.9 : 49.1;
-  const tbStart = duration > 0 ? child.tbAwal : hBirth;
+  const tbStart = duration > 0 ? child.tbAwal : child.tbAkhir;
 
   ages.forEach((age, idx) => {
     const fraction = ages.length > 1 ? idx / (ages.length - 1) : 0;

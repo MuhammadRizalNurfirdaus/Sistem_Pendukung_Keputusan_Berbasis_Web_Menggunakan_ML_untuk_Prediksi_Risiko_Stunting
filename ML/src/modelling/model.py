@@ -70,12 +70,29 @@ class StuntingPredictor:
         """
         Menerima DataFrame hasil dari process_excel_template (Banyak Anak),
         lalu memprediksi semuanya sekaligus (Batch Prediction).
-        Mengembalikan list of string ["NORMAL", "BERISIKO STUNTING", ...].
+        Mengembalikan list of dict: [{"label": "NORMAL", "probability": 0.15}, ...].
         """
         if self.model is None:
             self.load_model()
             
         prediksi_array = self.model.predict(df_input)
-        hasil_teks = ["NORMAL" if p == 0 else "BERISIKO STUNTING" for p in prediksi_array]
         
-        return hasil_teks
+        # Coba ambil probabilitas jika didukung oleh model
+        try:
+            prob_array = self.model.predict_proba(df_input)
+            # prob_array biasanya [[prob_0, prob_1], ...]
+            # Kita ambil probabilitas kelas 1 (Stunting) sebagai probability
+            probs = prob_array[:, 1]
+        except Exception:
+            # Fallback jika model tidak mendukung predict_proba
+            probs = [1.0 if p == 1 else 0.0 for p in prediksi_array]
+
+        hasil = []
+        for p, prob in zip(prediksi_array, probs):
+            label = "NORMAL" if p == 0 else "BERISIKO STUNTING"
+            hasil.append({
+                "label": label,
+                "probability": float(prob)
+            })
+            
+        return hasil

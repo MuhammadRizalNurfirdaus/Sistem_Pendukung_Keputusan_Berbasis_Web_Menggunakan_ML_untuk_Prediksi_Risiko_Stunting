@@ -302,39 +302,50 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
     }
   };
 
-  const exportToCSV = () => {
+  const exportToExcel = () => {
     if (bulkResults.length === 0) return;
-    const headers = ['Nama Balita', 'Umur (Bulan)', 'Jenis Kelamin', 'Berat Badan (kg)', 'Tinggi Badan (cm)', 'Z-Score (HAZ)', 'Status Tinggi (WHO)', 'Status Gizi (WHO)', 'Rasio BB/TB'];
+    const headers = ['Nama Balita', 'Jenis Kelamin', 'Umur (Bulan)', 'Berat Badan (kg)', 'Tinggi Badan (cm)', 'Status Gizi (BMI)', 'Skor Z-Score (HAZ)', 'Kategori Medis', 'Kesimpulan AI (Stunting)'];
+    
     const rows = bulkResults.map((r: any) => {
       if (r.error) {
-        return [r.nama, r.umur, r.jenisKelamin, r.berat, r.tinggi, 'Error', r.error, '', ''];
+        return [r.nama, '', '', '', '', '', '', '', r.error];
       }
       const res = r.result;
       const genderLabel = res.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan';
-      const stuntingLabel = res.severity >= 2 ? 'Sangat Pendek' : res.status === 1 ? 'Pendek' : 'Normal';
+      const stuntingStatus = res.status === 1 ? 'Berisiko Stunting' : 'Normal';
+      const stuntingCategory = res.severity >= 2 ? 'Sangat Pendek' : res.status === 1 ? 'Pendek' : 'Normal';
+      
       return [
         res.nama,
-        res.umur,
         genderLabel,
+        res.umur,
         res.bbAkhir,
         res.tbAkhir,
-        res.zScore,
-        stuntingLabel,
         res.nutritionalLabel,
-        res.rasioBBTBAkhir
+        res.zScore,
+        stuntingCategory,
+        stuntingStatus
       ];
     });
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" // Add BOM for Excel compatibility
-      + [headers.join(','), ...rows.map(e => e.map(val => `"${val}"`).join(','))].join('\n');
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Posyandu");
+    
+    // Set column widths for better readability
+    worksheet['!cols'] = [
+      { wch: 25 }, // Nama
+      { wch: 15 }, // JK
+      { wch: 15 }, // Umur
+      { wch: 18 }, // BB
+      { wch: 18 }, // TB
+      { wch: 25 }, // Gizi
+      { wch: 20 }, // Z-Score
+      { wch: 20 }, // Kategori
+      { wch: 25 }, // Kesimpulan AI
+    ];
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Laporan_Analisis_Posyandu_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    XLSX.writeFile(workbook, `Laporan_Analisis_Posyandu_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   // Tab Switcher Styles
@@ -494,7 +505,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
               <div style={{ fontSize: '2.5rem', fontWeight: 800, color: isStunting ? 'var(--accent-coral)' : 'var(--accent-green)' }}>
                 {pct}%
               </div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Probabilitas</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '4px' }}>Risiko Stunting</div>
             </div>
           </div>
 
@@ -514,12 +525,36 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
             </div>
 
             <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.95rem' }}>
-              {isSevere ? (
-                <>Berdasarkan perhitungan <strong>Z-Score WHO</strong>, tinggi badan <strong>{activeData.nama}</strong> berada <strong>di bawah -3 SD</strong> (Z-Score: {zScore}). Anak tergolong <strong>sangat pendek (severely stunted)</strong>. Segera konsultasikan ke dokter anak atau puskesmas terdekat untuk penanganan gizi intensif.</>
-              ) : isStunting ? (
-                <>Berdasarkan perhitungan <strong>Z-Score WHO</strong>, tinggi badan <strong>{activeData.nama}</strong> berada <strong>di bawah -2 SD</strong> (Z-Score: {zScore}). Anak tergolong <strong>pendek (stunted)</strong>. Tingkatkan asupan protein hewani dan konsultasikan ke petugas Posyandu atau dokter anak terdekat.</>
+              {activeData.tipe === 'simulasi_kolektif' ? (
+                isStunting ? (
+                  // Predicts Stunting in future
+                  zScore !== undefined && zScore >= -2 ? (
+                    // Future Z-score is >= -2 but AI says Stunting? 
+                    // Since we injected Z-score into training, this is rare, but if it happens, it means Velocity is very bad.
+                    <><strong>Peringatan Dini!</strong> Berdasarkan <strong>Prediksi AI</strong>, kecepatan tumbuh <strong>{activeData.nama}</strong> terpantau sangat lambat (Tinggi: <strong>{activeData.kecepatanTB > 0 ? '+' : ''}{activeData.kecepatanTB.toFixed(1)} cm/bln</strong>, Berat: <strong>{activeData.kecepatanBB > 0 ? '+' : ''}{activeData.kecepatanBB.toFixed(2)} kg/bln</strong>). Dalam <strong>{activeData.lamaPantau} bulan ke depan</strong> ia diprediksi memiliki probabilitas <strong>{(activeData.probability * 100).toFixed(1)}%</strong> jatuh ke lintasan <strong>Stunting (Faltering Growth)</strong> dengan estimasi tinggi akhir <strong>{activeData.tbAkhir.toFixed(1)} cm</strong>. Segera perbaiki gizi sebelum terlambat!</>
+                  ) : (
+                    // Future Z-score is < -2 and AI says Stunting
+                    <><strong>Perhatian Khusus!</strong> Berdasarkan histori kecepatan tumbuhnya (Tinggi: <strong>{activeData.kecepatanTB > 0 ? '+' : ''}{activeData.kecepatanTB.toFixed(1)} cm/bln</strong>), <strong>Prediksi AI</strong> memproyeksikan lintasan pertumbuhan <strong>{activeData.nama}</strong> dalam <strong>{activeData.lamaPantau} bulan ke depan</strong> akan tetap berada di bawah kurva dengan probabilitas <strong>{(activeData.probability * 100).toFixed(1)}% Berisiko Stunting</strong>. Diperlukan intervensi gizi dan pendampingan medis yang lebih intensif.</>
+                  )
+                ) : (
+                  // Predicts Normal in future
+                  zScore !== undefined && zScore < -2 ? (
+                    // Future Z-score < -2 but AI says Normal?
+                    // This means Catch-up growth is happening!
+                    <><strong>Kabar Baik!</strong> <strong>Prediksi AI</strong> menangkap tren kecepatan tumbuh yang luar biasa positif (Tinggi: <strong>+{activeData.kecepatanTB.toFixed(1)} cm/bln</strong>, Berat: <strong>+{activeData.kecepatanBB.toFixed(2)} kg/bln</strong>). Dalam <strong>{activeData.lamaPantau} bulan ke depan</strong>, <strong>{activeData.nama}</strong> memiliki peluang besar (<strong>{((1 - activeData.probability) * 100).toFixed(1)}%</strong>) untuk melakukan <em>Catch-up Growth</em> dan lulus dari kategori stunting. Pertahankan asupan gizinya!</>
+                  ) : (
+                    // Future Z-score >= -2 and AI says Normal
+                    <><strong>Sangat Baik!</strong> Berdasarkan <strong>Prediksi AI</strong>, tren kecepatan tumbuh anak sangat ideal (Tinggi: <strong>+{activeData.kecepatanTB.toFixed(1)} cm/bln</strong>). Dalam <strong>{activeData.lamaPantau} bulan ke depan</strong>, probabilitas ia tetap <strong>Normal (Aman)</strong> mencapai <strong>{((1 - activeData.probability) * 100).toFixed(1)}%</strong> dengan estimasi tinggi mencapai <strong>{activeData.tbAkhir.toFixed(1)} cm</strong>. Lanjutkan pola asuh dan gizi yang sudah baik ini.</>
+                  )
+                )
               ) : (
-                <>Kabar baik! Berdasarkan perhitungan <strong>Z-Score WHO</strong> (Z-Score: {zScore}), pertumbuhan <strong>{activeData.nama}</strong> berada dalam kurva <strong>normal WHO</strong> (≥ -2 SD). Terus pantau dan pertahankan pola makan bergizi seimbang.</>
+                isSevere ? (
+                  <>Berdasarkan perhitungan klinis <strong>Z-Score WHO</strong> mutlak, tinggi badan <strong>{activeData.nama}</strong> berada <strong>di bawah -3 SD</strong> (Z-Score: {zScore}). Anak tergolong <strong>sangat pendek (severely stunted)</strong>. Segera konsultasikan ke dokter anak atau puskesmas terdekat untuk penanganan gizi intensif.</>
+                ) : isStunting ? (
+                  <>Berdasarkan perhitungan klinis <strong>Z-Score WHO</strong> mutlak, tinggi badan <strong>{activeData.nama}</strong> berada <strong>di bawah -2 SD</strong> (Z-Score: {zScore}). Anak tergolong <strong>pendek (stunted)</strong>. Tingkatkan asupan protein hewani dan konsultasikan ke petugas Posyandu atau dokter anak terdekat.</>
+                ) : (
+                  <>Kabar baik! Berdasarkan perhitungan klinis <strong>Z-Score WHO</strong> mutlak (Z-Score: {zScore}), pertumbuhan <strong>{activeData.nama}</strong> berada dalam kurva <strong>normal WHO</strong> (≥ -2 SD). Terus pantau dan pertahankan pola makan bergizi seimbang.</>
+                )
               )}
             </p>
           </div>
@@ -625,19 +660,19 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
               <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Z-Score (HAZ)</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Skor Anak (Z-Score)</div>
                 <div style={{ fontSize: '1.75rem', fontWeight: 800, color: isStunting ? 'var(--accent-coral)' : 'var(--accent-green)' }}>{zScore}</div>
               </div>
               <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Median WHO</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Target Ideal (Median)</div>
                 <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{activeData.medianWHO} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cm</span></div>
               </div>
               <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Batas -2 SD</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Batas Pendek (-2 SD)</div>
                 <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent-coral)' }}>{activeData.minus2SD} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cm</span></div>
               </div>
               <div style={{ padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-primary)', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Batas -3 SD</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>Sangat Pendek (-3 SD)</div>
                 <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#c62828' }}>{activeData.minus3SD} <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>cm</span></div>
               </div>
             </div>
@@ -947,8 +982,8 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Analisis stunting dan status gizi balita Posyandu selesai dihitung.</p>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button type="button" className="btn btn-outline" onClick={exportToCSV} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
-                  📥 Ekspor ke CSV (.csv)
+                <button type="button" className="btn btn-outline" onClick={exportToExcel} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+                  📥 Unduh Laporan Excel (.xlsx)
                 </button>
                 <button type="button" className="btn btn-primary" onClick={() => { 
                   setExcelFile(null); 

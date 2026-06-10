@@ -293,21 +293,12 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onNavigate, apiUrl }
                       <td style={{ padding: '14px 8px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                           <button
-                            onClick={() => onNavigate('input', { id: c.id, nama: c.nama, jenisKelamin: c.jenisKelamin })}
-                            className="btn btn-primary"
+                            onClick={() => onNavigate('child-detail', { id: c.id, nama: c.nama, jenisKelamin: c.jenisKelamin })}
+                            className="btn btn-secondary"
                             style={{ padding: '6px 12px', fontSize: '0.8rem', fontWeight: 700 }}
                           >
-                            ➕ Periksa
+                            Detail
                           </button>
-                          {c.measurementCount > 0 && latest && (
-                            <button
-                              onClick={() => onNavigate('dashboard', latest)}
-                              className="btn btn-secondary"
-                              style={{ padding: '6px 12px', fontSize: '0.8rem', fontWeight: 700 }}
-                            >
-                              Detail
-                            </button>
-                          )}
                           <button
                             onClick={() => {
                               setChildToDelete(c);

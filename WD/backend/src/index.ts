@@ -184,9 +184,16 @@ app.get("/api/history", async ({ query, set }) => {
     return { error: "user_id diperlukan" };
   }
 
+  const childId = query.child_id;
+
   try {
+    let filters = `user_id=eq.${encodeURIComponent(userId)}`;
+    if (childId) {
+      filters += `&child_id=eq.${encodeURIComponent(childId)}`;
+    }
+    filters += `&order=created_at.desc`;
     const predictions = await supabaseQuery("predictions", {
-      filters: `user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc`,
+      filters,
     });
 
     // Map snake_case DB columns to camelCase frontend format
@@ -657,18 +664,17 @@ async function getOrCreateChild(userId: string, nama: string, jenisKelamin: "L" 
   return dbRow?.[0] || { id: null };
 }
 
-// POST /api/predict/single - Single prediction using ML model + Z-Score calculations
-app.post("/api/predict/single", async ({ body, set }) => {
-  const { nama, umur, jenisKelamin, berat, tinggi, lingkarKepala, lingkarLengan, tipe, user_id } = body;
-  
-  if (!user_id) {
-    set.status = 400;
-    return { error: "user_id diperlukan untuk menyimpan data." };
-  }
+// POST /api/predict/calculate - Lightweight calculator (no database save)
+app.post("/api/predict/calculate", async ({ body, set }) => {
+  const { nama, umur, jenisKelamin, berat, tinggi, lingkarKepala, lingkarLengan } = body;
 
   if (!nama || nama.trim() === "") {
     set.status = 400;
     return { error: "Nama lengkap balita harus diisi" };
+  }
+  if (!/^[a-zA-Z\s'.]+$/.test(nama.trim())) {
+    set.status = 400;
+    return { error: "Nama balita hanya boleh berisi huruf (tidak boleh angka atau simbol)." };
   }
   const umurNum = Number(umur);
   if (umur === undefined || isNaN(umurNum) || umurNum < 0 || umurNum > 60) {
@@ -686,79 +692,17 @@ app.post("/api/predict/single", async ({ body, set }) => {
     return { error: "Tinggi badan tidak masuk akal secara biologis (Batas wajar: 35 - 130 cm)." };
   }
 
-  // 1. Get or create child record
-  const child = await getOrCreateChild(user_id, nama, jenisKelamin);
-  const childId = child.id;
   const cleanNama = nama.trim();
 
-  // 2. Check for duplicate prediction
-  const existing = await supabaseQuery("predictions", {
-    filters: `user_id=eq.${encodeURIComponent(user_id)}&nama=ilike.${encodeURIComponent(cleanNama)}&umur=eq.${umur}&bb_akhir=eq.${berat}&tb_akhir=eq.${tinggi}`
-  }) || [];
-
-  if (existing.length > 0) {
-    const p = existing[0];
-    return {
-      id: p.id,
-      nama: p.nama,
-      umur: Number(p.umur),
-      jenisKelamin: p.jenis_kelamin,
-      bbAwal: Number(p.bb_awal),
-      tbAwal: Number(p.tb_awal),
-      bbAkhir: Number(p.bb_akhir),
-      tbAkhir: Number(p.tb_akhir),
-      lamaPantau: Number(p.lama_pantau || 0),
-      kecepatanBB: Number(p.kecepatan_bb || 0),
-      kecepatanTB: Number(p.kecepatan_tb || 0),
-      rasioBBTBAkhir: Number(p.rasio_bb_tb_akhir || 0),
-      lingkarKepala: p.lingkar_kepala ? Number(p.lingkar_kepala) : null,
-      lingkarLengan: p.lingkar_lengan ? Number(p.lingkar_lengan) : null,
-      zScore: Number(p.z_score || 0),
-      medianWHO: Number(p.median_who || 0),
-      minus2SD: Number(p.minus_2sd || 0),
-      minus3SD: Number(p.minus_3sd || 0),
-      stuntingLabel: p.stunting_label,
-      status: Number(p.status || 0),
-      severity: Number(p.severity || 0),
-      nutritionalStatus: Number(p.nutritional_status || 0),
-      nutritionalLabel: p.nutritional_label,
-      probability: Number(p.probability || 0),
-      tipe: p.tipe,
-      pesan: "",
-      createdAt: p.created_at,
-    };
-  }
-
-  let mlPrediction = { status_code: 0, status_teks: "NORMAL", pesan: "" };
-  try {
-    const mlRes = await fetch(`${ML_URL}/api/predict/single`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        umur_bulan: umur,
-        jenis_kelamin: jenisKelamin === "L" ? 1 : 0,
-        bb_awal: berat,
-        tb_awal: tinggi,
-        bb_akhir: berat,
-        tb_akhir: tinggi,
-        lama_pantau_bulan: 0
-      })
-    });
-    if (mlRes.ok) {
-      mlPrediction = await mlRes.json();
-    } else {
-      console.error(`ML API single failed with status ${mlRes.status}`);
-    }
-  } catch (err) {
-    console.error("Failed to connect to ML API:", err);
-  }
-
+  // Karena ini adalah input 1 titik waktu (tanpa riwayat/kecepatan tumbuh),
+  // kita SEPENUHNYA menggunakan Rule-Based WHO Z-Score (tidak memanggil ML Python).
   const [L, M, S] = getLMS(umur, jenisKelamin);
   const zScore = calculateZScore(tinggi, L, M, S);
-  
-  const stuntingStatus = mlPrediction.status_code;
-  const stuntingLabel = mlPrediction.status_teks === "NORMAL" ? "Normal" : "Berisiko Stunting";
-  
+
+  // Logika Stunting Rule-Based WHO: Z-Score TB/U < -2 adalah Stunting
+  const stuntingStatus = zScore < -2 ? 1 : 0;
+  const stuntingLabel = zScore < -2 ? "Berisiko Stunting" : "Normal";
+
   const { status: nutStatus, label: nutLabel } = classifyNutritionalStatus(berat, tinggi, umur);
   const probability = zScoreToRiskProbability(zScore);
   const minus2SD = M * (1 + L * S * (-2));
@@ -772,287 +716,33 @@ app.post("/api/predict/single", async ({ body, set }) => {
   const m2sd = parseFloat(minus2SD.toFixed(1));
   const m3sd = parseFloat(minus3SD.toFixed(1));
   const probRounded = parseFloat(probability.toFixed(3));
-  const tipeVal = tipe || 'mandiri';
 
-  try {
-    const dbRow = await supabaseQuery("predictions", {
-      method: "POST",
-      body: {
-        user_id,
-        nama: cleanNama,
-        child_id: childId,
-        umur,
-        jenis_kelamin: jenisKelamin,
-        bb_awal: berat,
-        tb_awal: tinggi,
-        bb_akhir: berat,
-        tb_akhir: tinggi,
-        lama_pantau: 0,
-        kecepatan_bb: 0,
-        kecepatan_tb: 0,
-        rasio_bb_tb_akhir: rasioBBTB,
-        lingkar_kepala: lkVal,
-        lingkar_lengan: llVal,
-        z_score: zScoreRounded,
-        median_who: medianRounded,
-        minus_2sd: m2sd,
-        minus_3sd: m3sd,
-        stunting_label: stuntingLabel,
-        severity: zScore < -3 ? 2 : (zScore < -2 ? 1 : 0),
-        nutritional_status: nutStatus,
-        nutritional_label: nutLabel,
-        status: stuntingStatus,
-        probability: probRounded,
-        tipe: tipeVal,
-      },
-    });
-
-    const savedId = dbRow?.[0]?.id || crypto.randomUUID();
-
-    return {
-      id: savedId,
-      nama: cleanNama,
-      umur,
-      jenisKelamin,
-      bbAwal: berat,
-      tbAwal: tinggi,
-      bbAkhir: berat,
-      tbAkhir: tinggi,
-      lamaPantau: 0,
-      kecepatanBB: 0,
-      kecepatanTB: 0,
-      rasioBBTBAkhir: rasioBBTB,
-      lingkarKepala: lkVal,
-      lingkarLengan: llVal,
-      zScore: zScoreRounded,
-      medianWHO: medianRounded,
-      minus2SD: m2sd,
-      minus3SD: m3sd,
-      stuntingLabel,
-      status: stuntingStatus,
-      severity: zScore < -3 ? 2 : (zScore < -2 ? 1 : 0),
-      nutritionalStatus: nutStatus,
-      nutritionalLabel: nutLabel,
-      probability: probRounded,
-      tipe: tipeVal,
-      pesan: mlPrediction.pesan || "",
-      createdAt: dbRow?.[0]?.created_at || new Date().toISOString(),
-    };
-  } catch (error: any) {
-    console.error("Failed to save prediction to Supabase:", error);
-    set.status = 500;
-    return { error: "Gagal menyimpan hasil prediksi ke database." };
-  }
-}, {
-  body: t.Object({
-    nama: t.String(),
-    umur: t.Numeric(),
-    jenisKelamin: t.Union([t.Literal("L"), t.Literal("P")]),
-    berat: t.Numeric(),
-    tinggi: t.Numeric(),
-    lingkarKepala: t.Optional(t.Numeric()),
-    lingkarLengan: t.Optional(t.Numeric()),
-    tipe: t.Optional(t.String()),
-    user_id: t.String(),
-  })
-});
-
-// POST /api/predict/future - Future projection using ML + simulated WHO Z-Score
-app.post("/api/predict/future", async ({ body, set }) => {
-  const { nama, umur, jenisKelamin, berat, tinggi, lingkarKepala, lingkarLengan, tipe, user_id, target_bulan_kedepan } = body;
-  
-  if (!user_id) {
-    set.status = 400;
-    return { error: "user_id diperlukan untuk menyimpan data." };
-  }
-  if (!nama || nama.trim() === "") {
-    set.status = 400;
-    return { error: "Nama lengkap balita harus diisi" };
-  }
-  const umurNum = Number(umur);
-  if (umur === undefined || isNaN(umurNum) || umurNum < 0 || umurNum > 60) {
-    set.status = 400;
-    return { error: "Umur tidak valid. Standar balita WHO adalah 0 - 60 bulan." };
-  }
-  const beratNum = Number(berat);
-  if (berat === undefined || isNaN(beratNum) || beratNum < 1.5 || beratNum > 40) {
-    set.status = 400;
-    return { error: "Berat badan tidak masuk akal secara biologis (Batas wajar: 1.5 - 40 kg)." };
-  }
-  const tinggiNum = Number(tinggi);
-  if (tinggi === undefined || isNaN(tinggiNum) || tinggiNum < 35 || tinggiNum > 130) {
-    set.status = 400;
-    return { error: "Tinggi badan tidak masuk akal secara biologis (Batas wajar: 35 - 130 cm)." };
-  }
-
-  // 1. Get or create child record
-  const child = await getOrCreateChild(user_id, nama, jenisKelamin);
-  const childId = child.id;
-  const cleanNama = nama.trim();
-
-  let mlPrediction = { 
-    umur_simulasi: umur + target_bulan_kedepan, 
-    estimasi_tb_akhir: tinggi, 
-    estimasi_bb_akhir: berat, 
-    status_masa_depan: "NORMAL", 
-    pesan: "" 
+  return {
+    nama: cleanNama,
+    umur,
+    jenisKelamin,
+    bbAwal: berat,
+    tbAwal: tinggi,
+    bbAkhir: berat,
+    tbAkhir: tinggi,
+    lamaPantau: 0,
+    kecepatanBB: 0,
+    kecepatanTB: 0,
+    rasioBBTBAkhir: rasioBBTB,
+    lingkarKepala: lkVal,
+    lingkarLengan: llVal,
+    zScore: zScoreRounded,
+    medianWHO: medianRounded,
+    minus2SD: m2sd,
+    minus3SD: m3sd,
+    stuntingLabel,
+    status: stuntingStatus,
+    severity: zScore < -3 ? 2 : (zScore < -2 ? 1 : 0),
+    nutritionalStatus: nutStatus,
+    nutritionalLabel: nutLabel,
+    probability: probRounded,
+    pesan: "Dihitung menggunakan standar pasti Z-Score WHO.",
   };
-  try {
-    const mlRes = await fetch(`${ML_URL}/api/predict/future`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        umur_bulan: umur,
-        jenis_kelamin: jenisKelamin === "L" ? 1 : 0,
-        bb_awal: berat,
-        tb_awal: tinggi,
-        bb_akhir: berat,
-        tb_akhir: tinggi,
-        lama_pantau_bulan: 0,
-        target_bulan_kedepan: target_bulan_kedepan
-      })
-    });
-    if (mlRes.ok) {
-      mlPrediction = await mlRes.json();
-    } else {
-      console.error(`ML API future failed with status ${mlRes.status}`);
-    }
-  } catch (err) {
-    console.error("Failed to connect to ML API:", err);
-  }
-
-  const umurSimulasi = mlPrediction.umur_simulasi;
-  const estimasiTb = mlPrediction.estimasi_tb_akhir;
-  const estimasiBb = mlPrediction.estimasi_bb_akhir;
-
-  // 2. Check for duplicate prediction (simulation)
-  const existing = await supabaseQuery("predictions", {
-    filters: `user_id=eq.${encodeURIComponent(user_id)}&nama=ilike.${encodeURIComponent(cleanNama)}&umur=eq.${umurSimulasi}&bb_akhir=eq.${estimasiBb}&tb_akhir=eq.${estimasiTb}`
-  }) || [];
-
-  if (existing.length > 0) {
-    const p = existing[0];
-    return {
-      id: p.id,
-      nama: p.nama,
-      umur: Number(p.umur),
-      jenisKelamin: p.jenis_kelamin,
-      bbAwal: Number(p.bb_awal),
-      tbAwal: Number(p.tb_awal),
-      bbAkhir: Number(p.bb_akhir),
-      tbAkhir: Number(p.tb_akhir),
-      lamaPantau: Number(p.lama_pantau || 0),
-      kecepatanBB: Number(p.kecepatan_bb || 0),
-      kecepatanTB: Number(p.kecepatan_tb || 0),
-      rasioBBTBAkhir: Number(p.rasio_bb_tb_akhir || 0),
-      lingkarKepala: p.lingkar_kepala ? Number(p.lingkar_kepala) : null,
-      lingkarLengan: p.lingkar_lengan ? Number(p.lingkar_lengan) : null,
-      zScore: Number(p.z_score || 0),
-      medianWHO: Number(p.median_who || 0),
-      minus2SD: Number(p.minus_2sd || 0),
-      minus3SD: Number(p.minus_3sd || 0),
-      stuntingLabel: p.stunting_label,
-      status: Number(p.status || 0),
-      severity: Number(p.severity || 0),
-      nutritionalStatus: Number(p.nutritional_status || 0),
-      nutritionalLabel: p.nutritional_label,
-      probability: Number(p.probability || 0),
-      tipe: p.tipe,
-      pesan: "",
-      createdAt: p.created_at,
-    };
-  }
-
-  const [L, M, S] = getLMS(umurSimulasi, jenisKelamin);
-  const zScore = calculateZScore(estimasiTb, L, M, S);
-  
-  const stuntingStatus = mlPrediction.status_masa_depan === "NORMAL" ? 0 : 1;
-  const stuntingLabel = mlPrediction.status_masa_depan === "NORMAL" ? "Normal" : "Berisiko Stunting";
-  
-  const { status: nutStatus, label: nutLabel } = classifyNutritionalStatus(estimasiBb, estimasiTb, umurSimulasi);
-  const probability = zScoreToRiskProbability(zScore);
-  const minus2SD = M * (1 + L * S * (-2));
-  const minus3SD = M * (1 + L * S * (-3));
-
-  const rasioBBTB = parseFloat((estimasiBb / (estimasiTb + 0.001)).toFixed(3));
-  const lkVal = lingkarKepala !== undefined && lingkarKepala !== null ? parseFloat(Number(lingkarKepala).toFixed(1)) : null;
-  const llVal = lingkarLengan !== undefined && lingkarLengan !== null ? parseFloat(Number(lingkarLengan).toFixed(1)) : null;
-  const zScoreRounded = parseFloat(zScore.toFixed(2));
-  const medianRounded = parseFloat(M.toFixed(1));
-  const m2sd = parseFloat(minus2SD.toFixed(1));
-  const m3sd = parseFloat(minus3SD.toFixed(1));
-  const probRounded = parseFloat(probability.toFixed(3));
-  const tipeVal = tipe || 'simulasi';
-
-  try {
-    const dbRow = await supabaseQuery("predictions", {
-      method: "POST",
-      body: {
-        user_id,
-        nama: cleanNama,
-        child_id: childId,
-        umur: umurSimulasi,
-        jenis_kelamin: jenisKelamin,
-        bb_awal: berat,
-        tb_awal: tinggi,
-        bb_akhir: estimasiBb,
-        tb_akhir: estimasiTb,
-        lama_pantau: target_bulan_kedepan,
-        kecepatan_bb: 0,
-        kecepatan_tb: 0,
-        rasio_bb_tb_akhir: rasioBBTB,
-        lingkar_kepala: lkVal,
-        lingkar_lengan: llVal,
-        z_score: zScoreRounded,
-        median_who: medianRounded,
-        minus_2sd: m2sd,
-        minus_3sd: m3sd,
-        stunting_label: stuntingLabel,
-        severity: zScore < -3 ? 2 : (zScore < -2 ? 1 : 0),
-        nutritional_status: nutStatus,
-        nutritional_label: nutLabel,
-        status: stuntingStatus,
-        probability: probRounded,
-        tipe: tipeVal,
-      },
-    });
-
-    const savedId = dbRow?.[0]?.id || crypto.randomUUID();
-
-    return {
-      id: savedId,
-      nama: cleanNama,
-      umur: umurSimulasi,
-      jenisKelamin,
-      bbAwal: berat,
-      tbAwal: tinggi,
-      bbAkhir: estimasiBb,
-      tbAkhir: estimasiTb,
-      lamaPantau: target_bulan_kedepan,
-      kecepatanBB: 0,
-      kecepatanTB: 0,
-      rasioBBTBAkhir: rasioBBTB,
-      lingkarKepala: lkVal,
-      lingkarLengan: llVal,
-      zScore: zScoreRounded,
-      medianWHO: medianRounded,
-      minus2SD: m2sd,
-      minus3SD: m3sd,
-      stuntingLabel,
-      status: stuntingStatus,
-      severity: zScore < -3 ? 2 : (zScore < -2 ? 1 : 0),
-      nutritionalStatus: nutStatus,
-      nutritionalLabel: nutLabel,
-      probability: probRounded,
-      tipe: tipeVal,
-      pesan: mlPrediction.pesan || "",
-      createdAt: dbRow?.[0]?.created_at || new Date().toISOString(),
-    };
-  } catch (error: any) {
-    console.error("Failed to save prediction to Supabase:", error);
-    set.status = 500;
-    return { error: "Gagal menyimpan hasil prediksi ke database." };
-  }
 }, {
   body: t.Object({
     nama: t.String(),
@@ -1062,11 +752,10 @@ app.post("/api/predict/future", async ({ body, set }) => {
     tinggi: t.Numeric(),
     lingkarKepala: t.Optional(t.Numeric()),
     lingkarLengan: t.Optional(t.Numeric()),
-    tipe: t.Optional(t.String()),
-    user_id: t.String(),
-    target_bulan_kedepan: t.Numeric()
   })
 });
+
+
 
 // POST /api/predict/bulk - Excel bulk predictions
 app.post("/api/predict/bulk", async ({ body, set }) => {
@@ -1141,8 +830,8 @@ app.post("/api/predict/bulk", async ({ body, set }) => {
       
       const [L, M, S] = getLMS(umur_bulan, jenis_kelamin);
       const zScore = calculateZScore(tb_akhir, L, M, S);
-      const stuntingStatus = hasil_prediksi === "NORMAL" ? 0 : 1;
-      const stuntingLabel = hasil_prediksi === "NORMAL" ? "Normal" : "Berisiko Stunting";
+      const stuntingStatus = zScore < -2 ? 1 : 0;
+      const stuntingLabel = zScore < -3 ? "Sangat Pendek" : (zScore < -2 ? "Pendek" : "Normal");
       const { status: nutStatus, label: nutLabel } = classifyNutritionalStatus(bb_akhir, tb_akhir, umur_bulan);
       const probability = zScoreToRiskProbability(zScore);
       const minus2SD = M * (1 + L * S * (-2));
@@ -1263,7 +952,7 @@ app.post("/api/predict/bulk-future", async ({ body, set }) => {
     const savedResults = [];
 
     for (const child of childrenList) {
-      const { nama, umur_simulasi_bulan, jenis_kelamin, bb_awal, tb_awal, bb_akhir, tb_akhir, lama_pantau_bulan, umur_bulan, estimasi_tb, estimasi_bb, hasil_prediksi_masa_depan } = child;
+      const { nama, umur_simulasi_bulan, jenis_kelamin, bb_awal, tb_awal, bb_akhir, tb_akhir, lama_pantau_bulan, umur_bulan, estimasi_tb, estimasi_bb, hasil_prediksi_masa_depan, ai_probability } = child;
       
       const childObj = await getOrCreateChild(user_id, nama, jenis_kelamin);
       const childId = childObj.id;
@@ -1310,7 +999,9 @@ app.post("/api/predict/bulk-future", async ({ body, set }) => {
       const stuntingStatus = hasil_prediksi_masa_depan === "NORMAL" ? 0 : 1;
       const stuntingLabel = hasil_prediksi_masa_depan === "NORMAL" ? "Normal" : "Berisiko Stunting";
       const { status: nutStatus, label: nutLabel } = classifyNutritionalStatus(estimasi_bb, estimasi_tb, umur_simulasi_bulan);
-      const probability = zScoreToRiskProbability(zScore);
+      
+      // Use AI probability if available, otherwise fallback to WHO logic
+      const probability = ai_probability !== undefined ? ai_probability : zScoreToRiskProbability(zScore);
       const minus2SD = M * (1 + L * S * (-2));
       const minus3SD = M * (1 + L * S * (-3));
       const rasioBBTB = parseFloat((estimasi_bb / (estimasi_tb + 0.001)).toFixed(3));

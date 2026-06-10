@@ -5,29 +5,24 @@ interface InputFormProps {
   onNavigate: (page: string, data?: any) => void;
   apiUrl: string;
   initialData?: any;
-  selectedChild?: any | null;
 }
 
-export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initialData, selectedChild }) => {
+export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initialData }) => {
   const [loading, setLoading] = useState(false);
   const [predictionResult, setPredictionResult] = useState<any>(initialData || null);
   
   // Form State
   const [formData, setFormData] = useState({
-    nama: initialData?.nama || selectedChild?.nama || '',
+    nama: initialData?.nama || '',
     umur: initialData?.umur?.toString() || '',
-    jenisKelamin: initialData?.jenisKelamin || selectedChild?.jenisKelamin || 'L' as 'L' | 'P',
+    jenisKelamin: initialData?.jenisKelamin || 'L' as 'L' | 'P',
     berat: initialData?.bbAkhir?.toString() || initialData?.berat?.toString() || '',
     tinggi: initialData?.tbAkhir?.toString() || initialData?.tinggi?.toString() || ''
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   
-  // Future Projection state
-  const [aktifkanSimulasi, setAktifkanSimulasi] = useState(false);
-  const [targetBulan, setTargetBulan] = useState('3');
-
-  // Sync state if initialData or selectedChild changes (e.g. from Dashboard Detail or ChildrenList)
+  // Sync state if initialData changes
   React.useEffect(() => {
     if (initialData) {
       setPredictionResult(initialData);
@@ -38,28 +33,13 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
         berat: initialData.bbAkhir?.toString() || initialData.berat?.toString() || '',
         tinggi: initialData.tbAkhir?.toString() || initialData.tinggi?.toString() || ''
       });
-      setAktifkanSimulasi((initialData.lamaPantau || 0) > 0);
-      setTargetBulan((initialData.lamaPantau || 0) > 0 ? initialData.lamaPantau.toString() : '3');
       // Scroll to result section after rendering
       setTimeout(() => {
         document.getElementById('prediction-result-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
-    } else if (selectedChild) {
-      setPredictionResult(null);
-      setAktifkanSimulasi(false);
-      setTargetBulan('3');
-      setFormData({
-        nama: selectedChild.nama || '',
-        umur: '',
-        jenisKelamin: selectedChild.jenisKelamin || 'L',
-        berat: '',
-        tinggi: ''
-      });
     } else {
       // Clear if navigating to empty input
       setPredictionResult(null);
-      setAktifkanSimulasi(false);
-      setTargetBulan('3');
       setFormData({
         nama: '',
         umur: '',
@@ -68,7 +48,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
         tinggi: ''
       });
     }
-  }, [initialData, selectedChild]);
+  }, [initialData]);
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -88,6 +68,8 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
 
     if (!formData.nama.trim()) {
       errors.nama = 'Nama lengkap balita harus diisi';
+    } else if (!/^[a-zA-Z\s'.]+$/.test(formData.nama.trim())) {
+      errors.nama = 'Nama balita hanya boleh berisi huruf (tidak boleh angka atau simbol).';
     }
 
     const umurVal = parseFloat(formData.umur);
@@ -103,13 +85,6 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
     const tinggiVal = parseFloat(formData.tinggi);
     if (isNaN(tinggiVal) || tinggiVal < 35 || tinggiVal > 130) {
       errors.tinggi = 'Tinggi badan di luar batas biologis (35 - 130 cm).';
-    }
-
-    if (aktifkanSimulasi) {
-      const targetVal = parseFloat(targetBulan);
-      if (isNaN(targetVal) || targetVal < 1 || targetVal > 3) {
-        errors.targetBulan = 'Target proyeksi harus antara 1 sampai 3 bulan';
-      }
     }
 
     setValidationErrors(errors);
@@ -128,26 +103,15 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
     setPredictionResult(null);
 
     try {
-      // Get user_id from session
-      const authData = localStorage.getItem('auth_user');
-      const userId = authData ? JSON.parse(authData).id : '';
-
       const payload: any = {
         nama: formData.nama,
         umur: parseFloat(formData.umur),
         jenisKelamin: formData.jenisKelamin,
         berat: parseFloat(formData.berat),
         tinggi: parseFloat(formData.tinggi),
-        tipe: aktifkanSimulasi ? 'simulasi' : 'mandiri',
-        user_id: userId,
       };
 
-      if (aktifkanSimulasi) {
-        payload.target_bulan_kedepan = parseFloat(targetBulan);
-      }
-
-      const endpoint = aktifkanSimulasi ? '/api/predict/future' : '/api/predict/single';
-      const res = await fetch(`${apiUrl}${endpoint}`, {
+      const res = await fetch(`${apiUrl}/api/predict/calculate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -194,15 +158,15 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
       }}>
         <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>💡</span>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-          <strong style={{ color: 'var(--accent-blue)' }}>Petunjuk:</strong> Halaman ini untuk input data pengukuran <strong>satu balita</strong> secara mandiri oleh orang tua/wali.
-          Untuk input data <strong>kolektif dalam format Excel</strong> oleh <strong>Kader Posyandu</strong>, silakan buka halaman{' '}
+          <strong style={{ color: 'var(--accent-blue)' }}>Petunjuk:</strong> Kalkulator ini dirancang untuk pengecekan stunting <strong>satu anak</strong> secara cepat.
+          Jika Anda adalah Kader Posyandu yang ingin menganalisis puluhan anak sekaligus menggunakan format Excel, silakan buka menu{' '}
           <span
             style={{ color: 'var(--accent-blue)', cursor: 'pointer', fontWeight: 700, textDecoration: 'underline' }}
             onClick={() => onNavigate('predictions')}
           >
-            📊 Hasil Prediksi
+            📊 Analisis Kolektif
           </span>{' '}
-          di menu navigasi.
+          di bilah navigasi.
         </p>
       </div>
 
@@ -226,8 +190,6 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
               value={formData.nama} 
               onChange={e => handleChange('nama', e.target.value)} 
               required 
-              disabled={!!selectedChild}
-              style={{ opacity: selectedChild ? 0.75 : 1, cursor: selectedChild ? 'not-allowed' : 'text' }}
             />
             {validationErrors.nama && <span style={{ color: 'var(--accent-coral)', fontSize: '0.8rem', marginTop: '4px', fontWeight: 600 }}>{validationErrors.nama}</span>}
           </div>
@@ -241,20 +203,18 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
             </div>
             <div className="form-group">
               <label className="form-label">Jenis Kelamin</label>
-              <div className="gender-switch" style={{ opacity: selectedChild ? 0.85 : 1, cursor: selectedChild ? 'not-allowed' : 'pointer' }}>
+              <div className="gender-switch">
                 <div
                   className={`gender-option ${formData.jenisKelamin === 'L' ? 'selected' : ''}`}
-                  onClick={() => !selectedChild && handleChange('jenisKelamin', 'L')}
+                  onClick={() => handleChange('jenisKelamin', 'L')}
                   id="gender-l"
-                  style={{ cursor: selectedChild ? 'not-allowed' : 'pointer' }}
                 >
                   👦 Laki-laki
                 </div>
                 <div
                   className={`gender-option ${formData.jenisKelamin === 'P' ? 'selected' : ''}`}
-                  onClick={() => !selectedChild && handleChange('jenisKelamin', 'P')}
+                  onClick={() => handleChange('jenisKelamin', 'P')}
                   id="gender-p"
-                  style={{ cursor: selectedChild ? 'not-allowed' : 'pointer' }}
                 >
                   👧 Perempuan
                 </div>
@@ -286,60 +246,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
             </div>
           </div>
 
-          {/* Section: Simulasi Masa Depan */}
-          <div style={{
-            margin: '1rem 0',
-            padding: '1.25rem',
-            borderRadius: 'var(--radius-md)',
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid var(--border-color)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '1.25rem' }}>🔮</span>
-                <div>
-                  <label htmlFor="input-simulasi" style={{ fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}>Aktifkan Simulasi Masa Depan</label>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>Proyeksikan pertumbuhan dan risiko stunting anak di bulan mendatang.</p>
-                </div>
-              </div>
-              <input 
-                id="input-simulasi"
-                type="checkbox" 
-                checked={aktifkanSimulasi} 
-                onChange={e => setAktifkanSimulasi(e.target.checked)}
-                style={{ width: '20px', height: '20px', accentColor: 'var(--accent-blue)', cursor: 'pointer' }}
-              />
-            </div>
 
-            {aktifkanSimulasi && (
-              <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '0.5rem' }}>
-                <div className="form-group">
-                  <label htmlFor="input-target-bulan" className="form-label">Target Bulan ke Depan</label>
-                  <input 
-                    id="input-target-bulan" 
-                    type="number" 
-                    className="form-input" 
-                    placeholder="Contoh: 3" 
-                    min="1" 
-                    max="3"
-                    value={targetBulan} 
-                    onChange={e => setTargetBulan(e.target.value)} 
-                    required 
-                  />
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Rentang proyeksi: 1 - 3 bulan ke depan</span>
-                  {validationErrors.targetBulan && <span style={{ color: 'var(--accent-coral)', fontSize: '0.8rem', marginTop: '4px', fontWeight: 600, display: 'block' }}>{validationErrors.targetBulan}</span>}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4, paddingLeft: '8px' }}>
-                    Sistem akan mensimulasikan penambahan tinggi dan berat badan anak berdasarkan <strong>rata-rata kecepatan tumbuh medis</strong> untuk mengklasifikasikan risiko di masa depan.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* Info Box */}
           <div style={{

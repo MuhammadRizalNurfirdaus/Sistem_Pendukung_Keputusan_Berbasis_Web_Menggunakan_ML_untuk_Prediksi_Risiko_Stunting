@@ -92,25 +92,8 @@ try:
 except Exception as e:
     print(f"Warning: Gagal memuat model di awal. Pastikan MLflow jalan. Error: {e}")
 
-# 2. Skema Data untuk endpoint Single (JSON Form)
-class SingleChildData(BaseModel):
-    umur_bulan: int
-    jenis_kelamin: int
-    bb_awal: float
-    tb_awal: float
-    bb_akhir: float
-    tb_akhir: float
-    lama_pantau_bulan: int
 
-class FutureProjectionData(BaseModel):
-    umur_bulan: int
-    jenis_kelamin: int
-    bb_awal: float
-    tb_awal: float
-    bb_akhir: float
-    tb_akhir: float
-    lama_pantau_bulan: int
-    target_bulan_kedepan: int
+
 
 
 # =====================================================
@@ -125,19 +108,7 @@ def metrics_endpoint():
     )
 
 
-# 3. Endpoint 1: Cek Cepat 1 Anak (Kalkulator)
-@app.post("/api/predict/single")
-def predict_single(data: SingleChildData):
-    try:
-        data_dict = data.dict()
-        hasil = predictor.predict(data_dict)
 
-        # Catat hasil prediksi ke Prometheus (Metrik 4)
-        record_prediction(hasil["status_teks"])
-
-        return hasil
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 # 4. Endpoint 2: Bulk Upload Excel
 @app.post("/api/predict/bulk")
@@ -215,7 +186,7 @@ async def predict_bulk_future(
         hasil_prediksi = predictor.predict_bulk(df_future)
 
         # Catat semua hasil prediksi ke Prometheus (Metrik 4)
-        record_bulk_predictions(hasil_prediksi)
+        record_bulk_predictions([p["label"] for p in hasil_prediksi])
         
         # 4. Gabungkan hasil prediksi dengan data asli untuk dikembalikan
         hasil_list = []
@@ -246,7 +217,8 @@ async def predict_bulk_future(
                 "umur_bulan": int(u_bulan) if not pd.isna(u_bulan) else 0,
                 "estimasi_tb": round(float(est_tb), 2) if not pd.isna(est_tb) else 0.0,
                 "estimasi_bb": round(float(est_bb), 2) if not pd.isna(est_bb) else 0.0,
-                "hasil_prediksi_masa_depan": prediksi
+                "hasil_prediksi_masa_depan": prediksi["label"],
+                "ai_probability": prediksi["probability"]
             })
             
         return {
@@ -256,42 +228,6 @@ async def predict_bulk_future(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gagal memproses simulasi file: {str(e)}")
 
-# 5. Endpoint 3: Simulasi Masa Depan (Single)
-@app.post("/api/predict/future")
-def predict_future(data: FutureProjectionData):
-    try:
-        data_dict = data.dict()
-        target_bulan = data_dict.pop('target_bulan_kedepan')
-        
-        # Preprocess data saat ini
-        from src.preprocessing.preprocessing import preprocess_data_anak
-        df_current = preprocess_data_anak(data_dict)
-        
-        # Ekstrapolasi ke masa depan
-        df_future = project_future_growth(df_current, target_bulan)
-        
-        # Prediksi kondisi di masa depan
-        prediksi_kode = int(predictor.model.predict(df_future)[0])
-        
-        if prediksi_kode == 0:
-            status = "NORMAL"
-            pesan = f"Simulasi {target_bulan} bulan ke depan: Aman."
-        else:
-            status = "BERISIKO STUNTING"
-            pesan = f"Simulasi {target_bulan} bulan ke depan: BERISIKO STUNTING! Anak butuh intervensi gizi sekarang."
-
-        # Catat hasil prediksi ke Prometheus (Metrik 4)
-        record_prediction(status)
-            
-        return {
-            "umur_simulasi": int(df_future.iloc[0]['Umur (Bulan)']),
-            "estimasi_tb_akhir": round(float(df_future.iloc[0]['TB_Akhir']), 2),
-            "estimasi_bb_akhir": round(float(df_future.iloc[0]['BB_Akhir']), 2),
-            "status_masa_depan": status,
-            "pesan": pesan
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 def read_root():
