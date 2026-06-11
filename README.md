@@ -164,9 +164,50 @@ Pastikan Anda sudah menginstal:
 
 ---
 
+## 🌐 Panduan Deployment ke VPS (Production)
+
+Proyek ini telah dikonfigurasi sepenuhnya menggunakan **Docker Compose** dan **Traefik** untuk penanganan routing HTTPS otomatis (Let's Encrypt). Berikut adalah langkah-langkah untuk melakukan deployment di VPS:
+
+### 1. Prasyarat di VPS
+* Pastikan VPS Anda menggunakan OS Linux (Ubuntu 20.04/22.04 LTS sangat disarankan).
+* Instal **Docker** dan **Docker Compose** di VPS Anda.
+* Siapkan dan arahkan Domain/Subdomain Anda (DNS A Record) ke alamat IP Publik VPS:
+  * `stunting.rizalnurfirdaus.tech` (Arahkan ke IP VPS - untuk Frontend)
+  * `api-stunting.rizalnurfirdaus.tech` (Arahkan ke IP VPS - untuk Backend Elysia)
+  * `ml-stunting.rizalnurfirdaus.tech` (Arahkan ke IP VPS - untuk API Machine Learning)
+
+### 2. Konfigurasi Traefik Network di VPS
+Karena `docker-compose.yml` menggunakan network eksternal bernama `traefik-public`, Anda perlu membuat network tersebut di VPS sebelum menjalankan container:
+```bash
+docker network create traefik-public
+```
+*(Catatan: Pastikan Anda telah menjalankan container reverse-proxy Traefik Anda sendiri di VPS yang mendengarkan di port 80 dan 443 dengan resolver sertifikat SSL bernama `le-ssl` sesuai konfigurasi label compose).*
+
+### 3. Kloning Repositori & Menjalankan Service
+1. Kloning repositori proyek di VPS:
+   ```bash
+   git clone https://github.com/MuhammadRizalNurfirdaus/Sistem-Pendukung-Keputusan-Menggunakan-ML-untuk-Prediksi-Risiko-Stunting.git
+   cd Sistem-Pendukung-Keputusan-Menggunakan-ML-untuk-Prediksi-Risiko-Stunting
+   ```
+2. Jalankan seluruh layanan (Frontend, Elysia Backend, FastAPI ML Backend) menggunakan Docker Compose:
+   ```bash
+   docker compose up -d --build
+   ```
+3. Periksa status container yang berjalan:
+   ```bash
+   docker compose ps
+   ```
+
+---
+
 ## 📅 Riwayat Versi & Log Perubahan (Changelog)
 
-### v2.3.0 (Juni 2026) — Rilis Stabilitas & Peningkatan DevTunnel [Terbaru]
+### v2.4.0 (Juni 2026) — Perbaikan Pemuatan Model & Penyelarasan API [Terbaru]
+- **Robust Model Loading**: Memperbaiki logika `load_model` untuk menyaring secara dinamis subdirektori model di folder `models/` agar hanya memuat model yang melatih 11 fitur lengkap (termasuk jangkar medis `Z_Score_Akhir`), menghindari kesalahan akibat modification time yang identik.
+- **Native predict_proba()**: Mengubah framework pemuatan model dari `mlflow.pyfunc` menjadi `mlflow.sklearn` untuk mengembalikan probabilitas prediksi stunting secara akurat di masa depan.
+- **Penyelarasan API & Perbaikan Typo**: Menyempurnakan output endpoint `/api/predict/bulk` serta memperbaiki bug variabel typo `df_fitur` -> `df_future` di endpoint `/api/predict/bulk-future`.
+
+### v2.3.0 (Juni 2026) — Rilis Stabilitas & Peningkatan DevTunnel
 - **Resolusi DevTunnel Dinamis**: Menambahkan deteksi otomatis dan resolusi URL API backend secara dinamis berdasarkan hostname DevTunnel yang digunakan untuk pengujian remote/seluler.
 - **Pembersihan Repositori**: Restrukturisasi branch kerja git (`wd` dan `ml`) menggunakan mekanisme git worktree/ignore terpisah untuk menghindari konflik pelacakan file.
 - **Stabilitas**: Perbaikan *glitch* minor pada visualisasi kurva pertumbuhan dan penanganan response API.
