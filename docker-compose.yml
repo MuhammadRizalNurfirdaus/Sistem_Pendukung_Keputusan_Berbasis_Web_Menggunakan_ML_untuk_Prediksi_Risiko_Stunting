@@ -42,7 +42,8 @@ services:
     container_name: pijak-backend-ml
     restart: always
     volumes:
-      - ./ML/mlruns:/app/mlruns
+    - ./mlruns:/app/mlruns  
+    - ./ML:/app/ML
     networks:
       - traefik-public
     labels:
