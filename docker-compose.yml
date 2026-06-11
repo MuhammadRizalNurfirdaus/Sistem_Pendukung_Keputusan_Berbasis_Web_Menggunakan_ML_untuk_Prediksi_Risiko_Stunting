@@ -13,8 +13,9 @@ services:
       - "traefik.http.routers.pijak-fe.entrypoints=websecure"
       - "traefik.http.routers.pijak-fe.tls.certresolver=le-ssl"
       - "traefik.http.services.pijak-fe.loadbalancer.server.port=80"
-    ports:
-      - "80:80"
+    # Komentari ports di VPS karena sudah ditangani oleh Traefik di port 80/443 host
+    # ports:
+    #   - "80:80"
 
   # 2. Backend WD: Elysia.js + Bun
   pijak-backend-wd:
@@ -32,8 +33,9 @@ services:
       - "traefik.http.routers.pijak-be-wd.entrypoints=websecure"
       - "traefik.http.routers.pijak-be-wd.tls.certresolver=le-ssl"
       - "traefik.http.services.pijak-be-wd.loadbalancer.server.port=3010"
-    ports:
-      - "3010:3010"
+    # Komentari ports di VPS karena sudah ditangani oleh Traefik secara internal
+    # ports:
+    #   - "3010:3010"
 
   # 3. Backend ML: FastAPI + Python (Sudah diperbaiki indentasinya)
   pijak-backend-ml:
@@ -54,8 +56,9 @@ services:
       - "traefik.http.routers.pijak-be-ml.entrypoints=websecure"
       - "traefik.http.routers.pijak-be-ml.tls.certresolver=le-ssl"
       - "traefik.http.services.pijak-be-ml.loadbalancer.server.port=8000"
-    ports:
-      - "8000:8000"
+    # Komentari ports di VPS karena sudah ditangani oleh Traefik secara internal
+    # ports:
+    #   - "8000:8000"
 
 networks:
   traefik-public:
