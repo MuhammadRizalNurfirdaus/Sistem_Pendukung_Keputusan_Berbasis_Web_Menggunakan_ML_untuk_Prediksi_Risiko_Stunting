@@ -160,7 +160,106 @@ Pastikan Anda sudah menginstal:
    cd ML
    uvicorn main:app --reload --port 8000
    ```
-   * Swagger dokumentasi interaktif dapat diakses di [http://localhost:8000/docs](http://localhost:8000/docs).
+    * Swagger dokumentasi interaktif dapat diakses di [http://localhost:8000/docs](http://localhost:8000/docs).
+
+---
+
+## 🐳 Panduan Deployment Produksi (Docker & Traefik)
+
+Aplikasi ini dideploy di server VPS menggunakan **Docker Compose** dan **Traefik v3** sebagai *Reverse Proxy* untuk menangani perutean domain HTTPS otomatis serta pembuatan sertifikat SSL (Let's Encrypt / Cloudflare).
+
+### 1. Arsitektur Perutean (Routing)
+Traefik mendeteksi label pada kontainer secara dinamis dan mengarahkan lalu lintas HTTPS sebagai berikut:
+* **`stunting.rizalnurfirdaus.tech`** &rarr; Diarahkan ke port `80` kontainer `pijak-frontend`
+* **`api-stunting.rizalnurfirdaus.tech`** &rarr; Diarahkan ke port `3010` kontainer `pijak-backend-wd`
+* **`ml-stunting.rizalnurfirdaus.tech`** &rarr; Diarahkan ke port `8000` kontainer `pijak-backend-ml`
+
+---
+
+### 2. Setup Awal Traefik di VPS
+
+1. Buat docker network eksternal untuk komunikasi antar kontainer:
+   ```bash
+   docker network create traefik-public
+   ```
+
+2. Buat struktur direktori untuk konfigurasi Traefik di VPS:
+   ```bash
+   mkdir -p ~/traefik/data
+   touch ~/traefik/data/acme.json
+   chmod 600 ~/traefik/data/acme.json
+   ```
+
+3. Buat file `~/traefik/docker-compose.yml` dengan konfigurasi berikut:
+   ```yaml
+   version: '3.8'
+
+   services:
+     traefik:
+       image: traefik:v3.4
+       container_name: traefik
+       restart: always
+       environment:
+         - DOCKER_API_VERSION=1.41 # Mengatasi kendala kompatibilitas versi Docker API lama
+       ports:
+         - "80:80"
+         - "443:443"
+         - "8080:8080" # Dasbor Traefik (opsional)
+       volumes:
+         - /var/run/docker.sock:/var/run/docker.sock:ro
+         - ./data/traefik.yml:/etc/traefik/traefik.yml
+         - ./data/acme.json:/etc/traefik/acme.json
+         - ./data/config.yml:/etc/traefik/config.yml
+       networks:
+         - traefik-public
+
+   networks:
+     traefik-public:
+       external: true
+   ```
+
+4. Jalankan Traefik:
+   ```bash
+   cd ~/traefik
+   docker compose up -d
+   ```
+
+---
+
+### 3. Sinkronisasi Model Machine Learning (`mlruns`)
+
+Folder eksperimen model ML (`ML/mlruns/`) diabaikan oleh `.gitignore` agar tidak masuk ke repositori git. Anda harus menyalin direktori ini secara manual dari komputer lokal ke VPS sebelum kontainer ML di VPS dijalankan:
+
+```bash
+# Jalankan perintah ini dari terminal komputer lokal Anda (sesuaikan IP VPS)
+scp -r ./ML/mlruns/ root@40.82.145.148:/opt/stunting-project/Sistem_Pendukung_Keputusan_Berbasis_Web_Menggunakan_ML_untuk_Prediksi_Risiko_Stunting/ML/
+```
+
+---
+
+### 4. Deployment Kontainer Aplikasi
+
+Setelah folder model ter-copy ke VPS:
+1. Pindah ke direktori utama proyek di VPS:
+   ```bash
+   cd /opt/stunting-project/Sistem_Pendukung_Keputusan_Berbasis_Web_Menggunakan_ML_untuk_Prediksi_Risiko_Stunting
+   ```
+
+2. Bangun dan jalankan seluruh service di background:
+   ```bash
+   docker compose up -d --build
+   ```
+
+3. Jika kontainer `pijak-backend-ml` sempat berjalan sebelum proses salin `mlruns` selesai, restart kontainer tersebut agar memuat ulang model yang baru disalin:
+   ```bash
+   docker compose restart pijak-backend-ml
+   ```
+
+4. Verifikasi status kontainer dan pastikan model termuat dengan sukses:
+   ```bash
+   docker ps
+   docker logs -f pijak-backend-ml
+   ```
 
 ---
 
