@@ -127,7 +127,7 @@ async def predict_bulk(file: UploadFile = File(...)):
         hasil_prediksi = predictor.predict_bulk(df_fitur)
 
         # Catat semua hasil prediksi ke Prometheus (Metrik 4)
-        record_bulk_predictions(hasil_prediksi)
+        record_bulk_predictions([p["label"] for p in hasil_prediksi])
         
         # Gabungkan hasil prediksi dengan data asli untuk dikembalikan ke frontend
         hasil_list = []
@@ -153,7 +153,7 @@ async def predict_bulk(file: UploadFile = File(...)):
                 "bb_akhir": float(bb_ak) if not pd.isna(bb_ak) else 0.0,
                 "tb_akhir": float(tb_ak) if not pd.isna(tb_ak) else 0.0,
                 "lama_pantau_bulan": int(l_pantau) if not pd.isna(l_pantau) else 1,
-                "hasil_prediksi": prediksi
+                "hasil_prediksi": prediksi["label"]
             })
             
         return {
@@ -183,6 +183,7 @@ async def predict_bulk_future(
         df_future = project_future_growth(df_current, target_bulan_kedepan)
         
         # 3. Prediksi Massal menggunakan model
+        print("DEBUG: Kolom dalam df_future:", df_future.columns.tolist())
         hasil_prediksi = predictor.predict_bulk(df_future)
 
         # Catat semua hasil prediksi ke Prometheus (Metrik 4)

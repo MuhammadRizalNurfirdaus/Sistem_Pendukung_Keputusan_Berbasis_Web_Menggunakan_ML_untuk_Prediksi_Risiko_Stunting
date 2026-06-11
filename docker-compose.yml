@@ -35,15 +35,17 @@ services:
     ports:
       - "3010:3010"
 
-  # 3. Backend ML: FastAPI + Python
+  # 3. Backend ML: FastAPI + Python (Sudah diperbaiki indentasinya)
   pijak-backend-ml:
     build:
       context: ./ML
     container_name: pijak-backend-ml
     restart: always
     volumes:
-    - ./mlruns:/app/mlruns  
-    - ./ML:/app/ML
+      - ./ML/mlruns:/app/mlruns  
+      - ./ML:/app/ML          
+    working_dir: /app/ML
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
     networks:
       - traefik-public
     labels:
@@ -53,7 +55,7 @@ services:
       - "traefik.http.routers.pijak-be-ml.tls.certresolver=le-ssl"
       - "traefik.http.services.pijak-be-ml.loadbalancer.server.port=8000"
     ports:
-      - "8000:8000"  # Membuka port 8000 untuk mempermudah debugging lokal jika diperlukan
+      - "8000:8000"
 
 networks:
   traefik-public:
