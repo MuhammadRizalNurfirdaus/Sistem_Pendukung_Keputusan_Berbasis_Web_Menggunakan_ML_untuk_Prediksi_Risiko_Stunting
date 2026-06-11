@@ -46,12 +46,13 @@ Model prediksi risiko stunting ini dibangun menggunakan algoritma **Random Fores
 * Mampu memberikan probabilitas prediksi (skor persentase risiko) yang digunakan untuk indikator tingkat kerawanan stunting balita.
 
 ### 2. Fitur Input Model (Features)
-Model dilatih menggunakan data pertumbuhan historis dengan fitur-fitur kunci sebagai berikut:
+Model dilatih menggunakan data pertumbuhan historis dengan 11 fitur kunci sebagai berikut:
 * `Umur (Bulan)`: Usia anak saat ini untuk menyesuaikan fase perkembangan fisik.
 * `Jenis Kelamin`: Variabel biner (1 = Laki-laki, 0 = Perempuan) karena standar pertumbuhan anak laki-laki dan perempuan memiliki ambang batas WHO yang berbeda.
 * `BB_Awal` & `TB_Awal`: Berat badan (kg) dan tinggi badan (cm) balita pada awal periode pemantauan gizi.
 * `BB_Akhir` & `TB_Akhir`: Berat badan (kg) dan tinggi badan (cm) balita pada pengukuran terakhir.
 * `Lama_Pantau_Bulan`: Jeda waktu pemantauan dalam satuan bulan.
+* `Z_Score_Akhir`: Skor deviasi standar antropometri tinggi-terhadap-umur (HAZ) pada akhir pemantauan, dihitung secara otomatis berdasarkan standar pertumbuhan anak WHO (LMS method).
 * *Feature Engineering (Kecepatan Tumbuh)*: Sistem secara otomatis menghitung *Growth Velocity* (kecepatan pertumbuhan tinggi badan per bulan dan berat badan per bulan) untuk mengidentifikasi adanya gejala *growth faltering* (pertumbuhan melambat).
 
 ### 3. Eksperimen & Manajemen Model (MLflow)
