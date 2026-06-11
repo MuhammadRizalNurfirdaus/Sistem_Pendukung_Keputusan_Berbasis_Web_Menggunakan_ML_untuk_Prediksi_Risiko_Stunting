@@ -2,10 +2,10 @@ import { Elysia, t } from "elysia";
 
 const app = new Elysia();
 
-// Batasan ukuran file 5 MB
+// Batasan ukuran file 10 MB
 (app as any).config = {
   ...(app as any).config,
-  maxBodySize: 5 * 1024 * 1024 
+  maxBodySize: 10 * 1024 * 1024 
 };
 
 // ============================================================
