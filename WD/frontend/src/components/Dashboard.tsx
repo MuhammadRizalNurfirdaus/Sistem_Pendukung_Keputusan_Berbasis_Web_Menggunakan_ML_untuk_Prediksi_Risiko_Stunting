@@ -106,9 +106,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, apiUrl }) => {
   return (
     <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       {/* Header Banner */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="dashboard-header">
         <div>
-          <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em', marginBottom: '0.25rem' }}>
+          <h1 className="dashboard-greeting">
             {getGreeting()}, Kader! 👋
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem' }}>
@@ -172,7 +172,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, apiUrl }) => {
           </div>
 
           {/* Donut Chart + Quick Actions */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'stretch' }}>
+          <div className="dashboard-chart-grid">
             {/* Donut Chart */}
             <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 700, alignSelf: 'flex-start' }}>Rasio Status Balita</h3>
@@ -304,7 +304,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, apiUrl }) => {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
               Tabel berikut menunjukkan batas minimal tinggi badan dan berat badan normal berdasarkan standar WHO untuk anak laki-laki (L) dan perempuan (P) pada berbagai usia.
             </p>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="who-table-wrapper">
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', minWidth: '600px' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
