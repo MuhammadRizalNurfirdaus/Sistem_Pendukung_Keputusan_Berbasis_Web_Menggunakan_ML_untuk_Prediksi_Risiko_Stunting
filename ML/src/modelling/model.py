@@ -1,4 +1,6 @@
 import os
+import mlflow
+import mlflow.pyfunc
 import mlflow.sklearn
 import pandas as pd
 from ..preprocessing.preprocessing import preprocess_data_anak
@@ -10,31 +12,25 @@ MLRUNS_DIR = os.path.join(BASE_DIR, "mlruns")
 class StuntingPredictor:
     def __init__(self):
         self.model = None
-        # Set tracking URI agar mlflow tahu dimana mengambil datanya
-        mlflow.set_tracking_uri(f"file:{MLRUNS_DIR}")
         
     def load_model(self):
-        """Memuat model terbaru dan terbaik dari eksperimen MLflow."""
         if self.model is None:
             try:
-                # Mengambil eksperimen
-                experiment = mlflow.get_experiment_by_name('Stunting_Model_Experiment')
-                if not experiment:
-                    raise Exception("Eksperimen 'Stunting_Model_Experiment' tidak ditemukan. Pastikan mlruns tersedia.")
+                # 1. Pastikan tracking URI di-set dengan benar
+                mlflow.set_tracking_uri("file:///app/mlruns/569065162946818888")
                 
-                # Mengambil run terbaru
-                runs = mlflow.search_runs(experiment_ids=[experiment.experiment_id], order_by=['start_time DESC'])
-                if runs.empty:
-                    raise Exception("Tidak ada history run di eksperimen tersebut.")
-                    
-                latest_run_id = runs.iloc[0].run_id
-                model_uri = f"runs:/{latest_run_id}/dynamic_rf_model"
+                # 2. Run ID yang sudah kita temukan
+                VALID_RUN_ID = "972f343d73184ee9acb25330a41ca33e"
                 
-                # Memuat model scikit-learn
-                self.model = mlflow.sklearn.load_model(model_uri)
-                print(f"Model berhasil dimuat dari Run ID: {latest_run_id}")
+                # 3. Load model
+                model_uri = f"runs:/{VALID_RUN_ID}/dynamic_rf_model"
+                print(f"[MLflow] Mencoba memuat dari: {model_uri}")
+                
+                self.model = mlflow.pyfunc.load_model(model_uri)
+                print("🎉 BERHASIL DIMUAT!")
+                
             except Exception as e:
-                print(f"Gagal memuat model: {e}")
+                print(f"Eror saat memuat model: {e}")
                 raise e
         return self.model
 
