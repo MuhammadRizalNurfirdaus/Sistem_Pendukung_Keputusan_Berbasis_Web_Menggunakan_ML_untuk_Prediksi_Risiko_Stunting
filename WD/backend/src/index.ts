@@ -2,6 +2,12 @@ import { Elysia, t } from "elysia";
 
 const app = new Elysia();
 
+// Batasan ukuran file 5 MB
+(app as any).config = {
+  ...(app as any).config,
+  maxBodySize: 5 * 1024 * 1024 
+};
+
 // ============================================================
 // Supabase Configuration
 // ============================================================
@@ -642,7 +648,7 @@ function classifyNutritionalStatus(weightKg: number, heightCm: number, ageMonths
 }
 
 // Define ML URL
-const ML_URL = "http://127.0.0.1:8000";
+const ML_URL = "http://pijak-backend-ml:8000";
 
 // Helper function to get or create a child record dynamically
 async function getOrCreateChild(userId: string, nama: string, jenisKelamin: "L" | "P") {

@@ -1,0 +1,59 @@
+services:
+  # 1. Frontend: React + Vite + TS
+  pijak-frontend:
+    build:
+      context: ./WD/frontend
+    container_name: pijak-frontend
+    restart: always
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pijak-fe.rule=Host(`stunting.rizalnurfirdaus.tech`)"
+      - "traefik.http.routers.pijak-fe.entrypoints=websecure"
+      - "traefik.http.routers.pijak-fe.tls.certresolver=le-ssl"
+      - "traefik.http.services.pijak-fe.loadbalancer.server.port=80"
+    ports:
+      - "80:80"
+
+  # 2. Backend WD: Elysia.js + Bun
+  pijak-backend-wd:
+    build:
+      context: ./WD/backend
+    container_name: pijak-backend-wd
+    restart: always
+    volumes:
+      - ./WD/backend/data:/app/data
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pijak-be-wd.rule=Host(`api-stunting.rizalnurfirdaus.tech`)"
+      - "traefik.http.routers.pijak-be-wd.entrypoints=websecure"
+      - "traefik.http.routers.pijak-be-wd.tls.certresolver=le-ssl"
+      - "traefik.http.services.pijak-be-wd.loadbalancer.server.port=3010"
+    ports:
+      - "3010:3010"
+
+  # 3. Backend ML: FastAPI + Python
+  pijak-backend-ml:
+    build:
+      context: ./ML
+    container_name: pijak-backend-ml
+    restart: always
+    volumes:
+      - ./ML/mlruns:/app/mlruns
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pijak-be-ml.rule=Host(`ml-stunting.rizalnurfirdaus.tech`)"
+      - "traefik.http.routers.pijak-be-ml.entrypoints=websecure"
+      - "traefik.http.routers.pijak-be-ml.tls.certresolver=le-ssl"
+      - "traefik.http.services.pijak-be-ml.loadbalancer.server.port=8000"
+    ports:
+      - "8000:8000"  # Membuka port 8000 untuk mempermudah debugging lokal jika diperlukan
+
+networks:
+  traefik-public:
+    external: true
