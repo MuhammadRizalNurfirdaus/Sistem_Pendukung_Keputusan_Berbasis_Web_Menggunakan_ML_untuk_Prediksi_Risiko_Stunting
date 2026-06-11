@@ -78,6 +78,16 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
 
   // Excel Parsing Handlers
   const parseExcelFile = (file: File) => {
+    // Validasi ukuran file maksimal 10 MB
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB dalam bytes
+    if (file.size > MAX_FILE_SIZE) {
+      setExcelError(`Ukuran file terlalu besar (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimal yang diperbolehkan adalah 10 MB.`);
+      setExcelFile(null);
+      setExcelData([]);
+      setBulkResults([]);
+      return;
+    }
+
     setExcelFile(file);
     setExcelError(null);
     setExcelData([]);
@@ -821,6 +831,9 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
             </h4>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
               {excelFile ? `${(excelFile.size / 1024).toFixed(1)} KB` : 'Atau klik untuk memilih berkas (.xlsx, .xls) dari perangkat Anda'}
+            </p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', opacity: 0.7 }}>
+              📎 Maksimal ukuran file: <strong>10 MB</strong>
             </p>
           </div>
         </div>
