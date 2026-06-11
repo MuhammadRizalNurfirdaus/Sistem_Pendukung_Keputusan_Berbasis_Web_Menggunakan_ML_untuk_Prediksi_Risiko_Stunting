@@ -1,73 +1,48 @@
-# React + TypeScript + Vite
+# 🎨 Frontend Web Application (React + Vite + TypeScript)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplikasi klien **Pantau Stunting** ini dibangun menggunakan **React**, **TypeScript**, dan **Vite** sebagai *build tool* utama. Antarmuka dirancang dengan estetika modern (*glassmorphism*, *glowing components*, dan *micro-animations*) serta mendukung mode gelap (*dark/light mode*).
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🌟 Fitur Utama
 
-## React Compiler
+1. **Dashboard Pertumbuhan**: Visualisasi tren Z-Score WHO balita secara instan, lengkap dengan indikator batas stunting (-3 SD, -2 SD, Median).
+2. **Input Gizi Akurat**: Form pengisian yang interaktif dengan validasi desimal ketat untuk mencegah salah ketik.
+3. **Analisis Kolektif (Excel)**: Fitur impor massal data posyandu menggunakan file Excel template untuk deteksi risiko stunting massal.
+4. **Dynamic API Endpoint**: Mendeteksi secara dinamis apakah aplikasi diakses via localhost, Cloudflare Tunnel (`stunting.rizalnurfirdaus.tech`), atau VS Code Dev Tunnel, lalu mengarahkan request API ke URL backend yang sesuai secara otomatis.
+5. **Tema Dinamis**: Floating action button yang dapat berpendar (*glowing theme switch*) untuk beralih antara tema gelap dan terang.
+6. **Manajemen Sesi Lokal**: Menyimpan sesi kader secara lokal di browser (`localStorage`) sehingga sesi tetap terjaga meski halaman dimuat ulang.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 📂 Komponen Utama & Halaman
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Semua kode komponen berada di bawah folder `src/components/`:
+* **`App.tsx`**: Pengendali state utama, manajemen sesi user, inisialisasi tema, dan routing halaman.
+* **`AuthPage.tsx`**: Halaman masuk akun (login) kader posyandu yang dilengkapi animasi dekorasi latar belakang.
+* **`Dashboard.tsx`**: Halaman utama berisi ringkasan statistik (jumlah balita, kasus berisiko) serta riwayat pemeriksaan terbaru.
+* **`ChildrenList.tsx`**: Daftar profil lengkap balita posyandu dengan fitur pencarian dan registrasi balita baru.
+* **`ChildDetail.tsx`**: Halaman rekam medis individu anak, menampilkan riwayat pertumbuhan historis dan grafik WHO secara visual.
+* **`InputForm.tsx`**: Formulir pencatatan pemeriksaan bulanan (berat badan, tinggi badan, dll).
+* **`ResultView.tsx`**: Halaman visualisasi analisis stunting massal dari file Excel yang diunggah.
+* **`Education.tsx`**: Pusat edukasi gizi dan panduan intervensi stunting bagi kader & orang tua.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 🛠️ Cara Menjalankan secara Lokal
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+1. Pindah ke direktori frontend:
+   ```bash
+   cd WD/frontend
+   ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+2. Instal dependensi:
+   ```bash
+   npm install
+   ```
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+3. Jalankan server development:
+   ```bash
+   npm run dev
+   ```
+   * Aplikasi akan berjalan dan dapat diakses pada alamat [http://localhost:5173](http://localhost:5173).
