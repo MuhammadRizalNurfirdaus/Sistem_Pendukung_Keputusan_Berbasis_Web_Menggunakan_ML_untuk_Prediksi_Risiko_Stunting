@@ -747,7 +747,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
         )}
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className="action-buttons" style={{ justifyContent: 'space-between' }}>
           <button className="btn btn-secondary" onClick={() => onNavigate('dashboard')}>
             ← Kembali ke Dashboard
           </button>
@@ -889,7 +889,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
               </div>
 
               {aktifkanProyeksi && (
-                <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '0.5rem' }}>
+                <div className="fade-in form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '0.5rem' }}>
                   <div className="form-group">
                     <label htmlFor="input-target-bulan-excel" className="form-label">Target Bulan ke Depan</label>
                     <input 
@@ -914,7 +914,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
               )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div className="page-header">
               <div>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Pratinjau Data Impor ({excelData.length} Balita)</h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '2px' }}>Silakan periksa kembali kecocokan data sebelum menganalisis.</p>

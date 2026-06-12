@@ -139,7 +139,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
   return (
     <div className="fade-in" style={{ maxWidth: '820px', margin: '0 auto' }}>
       {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="page-header">
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.025em' }}>Kalkulator Pertumbuhan Balita</h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Deteksi dini status stunting dan gizi balita menggunakan standar WHO.</p>
@@ -194,7 +194,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
             {validationErrors.nama && <span style={{ color: 'var(--accent-coral)', fontSize: '0.8rem', marginTop: '4px', fontWeight: 600 }}>{validationErrors.nama}</span>}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+          <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
             <div className="form-group">
               <label htmlFor="input-umur" className="form-label">Umur (Bulan)</label>
               <input id="input-umur" type="number" step="any" className="form-input" placeholder="Contoh: 24" min="0" value={formData.umur} onChange={e => handleChange('umur', e.target.value)} required />
@@ -231,7 +231,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
             Data Pengukuran
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1rem' }}>
+          <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1rem' }}>
             <div className="form-group">
               <label htmlFor="input-berat" className="form-label">Berat Badan (kg)</label>
               <input id="input-berat" type="number" step="any" className="form-input" placeholder="Contoh: 9.0" min="0.01" value={formData.berat} onChange={e => handleChange('berat', e.target.value)} required />
@@ -287,7 +287,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+        <div className="action-buttons">
           <button type="button" className="btn btn-secondary" onClick={() => onNavigate('dashboard')}>
             Kembali
           </button>

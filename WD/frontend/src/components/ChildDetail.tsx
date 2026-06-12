@@ -100,7 +100,7 @@ export const ChildDetail: React.FC<ChildDetailProps> = ({ childId, childName, ch
   return (
     <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       {/* Header with back button */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+      <div className="page-header" style={{ justifyContent: 'flex-start' }}>
         <button
           onClick={() => onNavigate('children')}
           className="btn btn-secondary"

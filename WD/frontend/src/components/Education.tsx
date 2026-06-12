@@ -232,7 +232,7 @@ export const Education: React.FC<EducationProps> = ({ apiUrl, onNavigate }) => {
       </div>
 
       {/* CTA */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+      <div className="action-buttons" style={{ justifyContent: 'center' }}>
         <button className="btn btn-secondary" onClick={() => onNavigate('dashboard')}>← Kembali ke Dashboard</button>
         <button className="btn btn-primary" onClick={() => onNavigate('input')}>🩺 Periksa Balita Sekarang</button>
       </div>

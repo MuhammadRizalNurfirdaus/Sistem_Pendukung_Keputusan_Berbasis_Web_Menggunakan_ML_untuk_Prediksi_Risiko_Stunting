@@ -104,7 +104,7 @@ function App() {
     }
   });
   const [activePage, setActivePage] = useState<PageName>('dashboard');
-  const [history, setHistory] = useState<Prediction[]>([]);
+
   const [activeResult, setActiveResult] = useState<Prediction | null>(null);
   const [selectedChildDetail, setSelectedChildDetail] = useState<{id: string, nama: string, jenisKelamin: 'L' | 'P'} | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -119,18 +119,10 @@ function App() {
   const handleLogout = () => {
     setAuthUser(null);
     localStorage.removeItem('auth_user');
-    setHistory([]);
     setActiveResult(null);
     setSelectedChildDetail(null);
     setActivePage('dashboard');
   };
-
-  // Fetch history on mount
-  useEffect(() => {
-    if (authUser) {
-      fetchHistory();
-    }
-  }, [authUser]);
 
 
   // Sync theme
@@ -144,39 +136,6 @@ function App() {
     }
   }, [darkMode]);
 
-  const fetchHistory = async () => {
-    if (!authUser) return;
-    try {
-      const res = await fetch(`${API_URL}/api/history?user_id=${authUser.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setHistory(data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch history:', err);
-    }
-  };
-
-  const handleDeleteHistory = async (id: string) => {
-    try {
-      const res = await fetch(`${API_URL}/api/history/${id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        if (activeResult && activeResult.id === id) {
-          setActiveResult(null);
-        }
-        await fetchHistory();
-      } else {
-        const errorData = await res.json();
-        console.error('Failed to delete history item:', errorData.error);
-        alert(`Gagal menghapus data: ${errorData.error}`);
-      }
-    } catch (err) {
-      console.error('Error deleting history item:', err);
-      alert('Terjadi kesalahan koneksi saat menghapus data.');
-    }
-  };
 
   const handleNavigate = useCallback((page: string, data?: any) => {
     setActivePage(page as PageName);
@@ -192,10 +151,7 @@ function App() {
         setActiveResult(null);
       }
     }
-    // Re-fetch history when going to dashboard ONLY if data is not specified
-    if (page === 'dashboard' && data === undefined) {
-      fetchHistory();
-    }
+
     // Close sidebar on mobile
     setSidebarOpen(false);
     // Scroll to top
@@ -305,11 +261,11 @@ function App() {
         }
         @media (max-width: 1024px) {
           .theme-toggle-btn {
-            bottom: 80px;
-            right: 16px;
-            top: auto;
-            width: 44px;
-            height: 44px;
+            top: 8px;
+            right: 12px;
+            bottom: auto;
+            width: 38px;
+            height: 38px;
             z-index: 1001;
             position: fixed;
           }
@@ -496,7 +452,7 @@ function App() {
             right: 0,
             bottom: 0,
             background: 'rgba(0,0,0,0.4)',
-            zIndex: 99,
+            zIndex: 290,
             backdropFilter: 'blur(4px)'
           }}
         />

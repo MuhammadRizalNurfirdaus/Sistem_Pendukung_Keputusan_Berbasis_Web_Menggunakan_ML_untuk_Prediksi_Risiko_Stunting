@@ -158,7 +158,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onNavigate, apiUrl }
     <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
       {/* Header Banner */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="page-header">
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>
             Daftar Balita Posyandu 👶
@@ -393,7 +393,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onNavigate, apiUrl }
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+              <div className="action-buttons" style={{ marginTop: '1rem' }}>
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -434,7 +434,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onNavigate, apiUrl }
               Apakah Anda yakin ingin menghapus data balita <strong>{childToDelete.nama}</strong>? Seluruh riwayat pemeriksaan ({childToDelete.measurementCount} riwayat) juga akan ikut terhapus dari sistem.
             </p>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <div className="action-buttons">
               <button
                 onClick={() => { setShowDeleteModal(false); setChildToDelete(null); }}
                 className="btn btn-secondary"
