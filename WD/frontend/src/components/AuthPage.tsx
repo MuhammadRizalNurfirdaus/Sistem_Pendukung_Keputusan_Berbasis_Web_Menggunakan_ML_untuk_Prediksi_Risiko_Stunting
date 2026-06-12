@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import logo from '../assets/logo.png';
 
 interface AuthPageProps {
   onLogin: (user: { id: string; username: string; full_name: string; role: string }) => void;
@@ -60,7 +59,7 @@ export function AuthPage({ onLogin, apiUrl }: AuthPageProps) {
         <div className="auth-brand">
           <div className="brand-logo-container" style={{ marginBottom: '0.75rem' }}>
             <img 
-              src={logo} 
+              src="/logo.png" 
               alt="Logo" 
               className="brand-logo-interactive brand-logo-auth" 
             />
@@ -279,7 +278,7 @@ export function AuthPage({ onLogin, apiUrl }: AuthPageProps) {
           font-size: 1.75rem;
         }
         .auth-title {
-          font-size: 1.75rem;
+          font-size: 1.45rem;
           font-weight: 800;
           letter-spacing: -0.03em;
           background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));

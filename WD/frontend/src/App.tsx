@@ -7,7 +7,6 @@ import { Education } from './components/Education';
 import { AuthPage } from './components/AuthPage';
 import { ChildrenList } from './components/ChildrenList';
 import { ChildDetail } from './components/ChildDetail';
-import logo from './assets/logo.png';
 
 const getApiUrl = () => {
   const { hostname } = window.location;
@@ -300,14 +299,14 @@ function App() {
         }}>
           <div className="brand-logo-container">
             <img 
-              src={logo} 
+              src="/logo.png" 
               alt="Logo" 
               className="brand-logo-interactive brand-logo-sidebar"
             />
           </div>
           <div>
             <h2 style={{ 
-              fontSize: '1.05rem', 
+              fontSize: '0.88rem', 
               fontWeight: 700, 
               letterSpacing: '-0.015em', 
               margin: 0, 
@@ -416,9 +415,17 @@ function App() {
             <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
           </svg>
         </button>
-        <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ 
+          fontWeight: 700, 
+          fontSize: '0.85rem', 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px',
+          color: 'var(--text-primary)',
+          whiteSpace: 'nowrap'
+        }}>
           <div className="brand-logo-container">
-            <img src={logo} alt="Logo" className="brand-logo-interactive brand-logo-mobile" />
+            <img src="/logo.png" alt="Logo" className="brand-logo-interactive brand-logo-mobile" />
           </div>
           Pantau Stunting Balita
         </span>
