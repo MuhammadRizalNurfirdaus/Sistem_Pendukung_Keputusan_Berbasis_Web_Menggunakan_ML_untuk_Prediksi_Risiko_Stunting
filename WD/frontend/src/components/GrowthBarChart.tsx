@@ -277,7 +277,7 @@ export const GrowthBarChart: React.FC<GrowthBarChartProps> = React.memo(({ child
   const padTop = 20;
   const padBottom = 30;
   // Use measured container width for the SVG viewBox so that it renders at 1:1 pixel ratio — no stretching
-  const svgW = Math.max(400, containerWidth - 32); // account for 1rem padding on each side
+  const svgW = Math.max(280, containerWidth - 32); // account for 1rem padding on each side
   const svgH = 220;
   const chartW = svgW - padLeft - padRight;
   const chartH = svgH - padTop - padBottom;

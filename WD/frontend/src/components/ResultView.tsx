@@ -479,12 +479,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
         </div>
 
         {/* Main Result Card - Stunting */}
-        <div className="glass-panel" style={{
-          padding: '2.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '3rem',
-          flexWrap: 'wrap',
+        <div className="glass-panel result-card-flex" style={{
           borderLeft: `6px solid ${isStunting ? 'var(--accent-coral)' : 'var(--accent-green)'}`
         }}>
           {/* Donut Chart */}
@@ -571,12 +566,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
         </div>
 
         {/* Main Result Card - Nutritional Status */}
-        <div className="glass-panel" style={{
-          padding: '2.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '3rem',
-          flexWrap: 'wrap',
+        <div className="glass-panel result-card-flex" style={{
           borderLeft: `6px solid ${nutBorderColor}`
         }}>
           {/* Indeks Massa Tubuh Representation */}
@@ -889,7 +879,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
               </div>
 
               {aktifkanProyeksi && (
-                <div className="fade-in form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '0.5rem' }}>
+                <div className="fade-in grid-2-col" style={{ marginTop: '0.5rem' }}>
                   <div className="form-group">
                     <label htmlFor="input-target-bulan-excel" className="form-label">Target Bulan ke Depan</label>
                     <input 

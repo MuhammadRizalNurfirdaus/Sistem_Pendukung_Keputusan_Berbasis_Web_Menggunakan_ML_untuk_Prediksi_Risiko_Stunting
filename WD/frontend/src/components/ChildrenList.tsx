@@ -188,7 +188,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onNavigate, apiUrl }
         flexWrap: 'wrap'
       }}>
         {/* Search Input */}
-        <div style={{ position: 'relative', flex: '1', minWidth: '280px', maxWidth: '420px' }}>
+        <div style={{ position: 'relative', flex: '1', minWidth: '240px', maxWidth: '420px' }}>
           <input
             type="text"
             placeholder="Cari nama balita..."
@@ -341,7 +341,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onNavigate, apiUrl }
       {/* Add Toddler Modal */}
       {showAddModal && (
         <div style={modalOverlayStyle}>
-          <div className="glass-panel" style={modalContentStyle}>
+          <div className="glass-panel modal-content-responsive" style={modalContentStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Daftarkan Balita Baru</h3>
               <button 
@@ -419,7 +419,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onNavigate, apiUrl }
       {/* Delete Confirmation Modal */}
       {showDeleteModal && childToDelete && (
         <div style={modalOverlayStyle}>
-          <div className="glass-panel" style={{ ...modalContentStyle, maxWidth: '400px' }}>
+          <div className="glass-panel modal-content-responsive" style={{ ...modalContentStyle, maxWidth: '400px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
               <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-full)', background: 'var(--accent-coral-bg)', color: 'var(--accent-coral)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>
                 ⚠️

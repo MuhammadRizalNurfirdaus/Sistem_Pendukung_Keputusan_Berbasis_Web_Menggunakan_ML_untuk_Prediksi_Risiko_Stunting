@@ -194,7 +194,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
             {validationErrors.nama && <span style={{ color: 'var(--accent-coral)', fontSize: '0.8rem', marginTop: '4px', fontWeight: 600 }}>{validationErrors.nama}</span>}
           </div>
 
-          <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+          <div className="grid-2-col">
             <div className="form-group">
               <label htmlFor="input-umur" className="form-label">Umur (Bulan)</label>
               <input id="input-umur" type="number" step="any" className="form-input" placeholder="Contoh: 24" min="0" value={formData.umur} onChange={e => handleChange('umur', e.target.value)} required />
@@ -231,7 +231,7 @@ export const InputForm: React.FC<InputFormProps> = ({ onNavigate, apiUrl, initia
             Data Pengukuran
           </h3>
 
-          <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1rem' }}>
+          <div className="grid-2-col" style={{ marginBottom: '1rem' }}>
             <div className="form-group">
               <label htmlFor="input-berat" className="form-label">Berat Badan (kg)</label>
               <input id="input-berat" type="number" step="any" className="form-input" placeholder="Contoh: 9.0" min="0.01" value={formData.berat} onChange={e => handleChange('berat', e.target.value)} required />
