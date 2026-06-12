@@ -296,11 +296,10 @@ function App() {
               src={logo} 
               alt="Logo" 
               style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: 'var(--radius-md)',
-                objectFit: 'contain',
-                boxShadow: 'var(--shadow-glow)'
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                objectFit: 'contain'
               }} 
             />
             <div>
@@ -408,7 +407,7 @@ function App() {
           </svg>
         </button>
         <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <img src={logo} alt="Logo" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+          <img src={logo} alt="Logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
           Pantau Stunting Balita
         </span>
         <div style={{ width: '24px' }} />
