@@ -234,7 +234,7 @@ body {
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
-  margin-top: 1.5rem;
+  margin-top: 1rem; /* kurangi margin-top dari 1.5rem ke 1rem agar tidak terlalu jauh dengan form */
 }
 
 /* ── Mobile Responsiveness (≤ 767px) ───────────────────── */
@@ -296,7 +296,7 @@ body {
   
   .action-buttons > * {
     width: 100% !important;
-    margin: 0 0 1rem 0 !important; /* use margin bottom for spacing */
+    margin: 0 0 0.5rem 0 !important; /* reduce margin bottom to make gap smaller */
   }
 
   /* first child in DOM is visually at the BOTTOM due to column-reverse */
@@ -313,7 +313,7 @@ body {
 
   .action-buttons > div > * {
     width: 100% !important;
-    margin: 0 0 1rem 0 !important;
+    margin: 0 0 0.5rem 0 !important;
   }
 
   /* last child in DOM is visually at the BOTTOM due to normal column */
