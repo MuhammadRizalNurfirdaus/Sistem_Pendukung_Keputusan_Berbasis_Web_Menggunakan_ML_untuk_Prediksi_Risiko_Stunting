@@ -261,11 +261,11 @@ function App() {
         }
         @media (max-width: 1024px) {
           .theme-toggle-btn {
-            top: 8px;
-            right: 12px;
-            bottom: auto;
-            width: 38px;
-            height: 38px;
+            bottom: 80px;
+            right: 16px;
+            top: auto;
+            width: 44px;
+            height: 44px;
             z-index: 1001;
             position: fixed;
           }
