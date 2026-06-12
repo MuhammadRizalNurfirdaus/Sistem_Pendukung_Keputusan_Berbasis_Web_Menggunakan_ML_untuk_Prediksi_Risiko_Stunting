@@ -12,3 +12,21 @@ venv/
 precise_attribution.sh
 rewrite_history.sh
 final_attribution.sh
+
+# Local Environment Variables & Configurations
+.env
+.env.local
+.env.*.local
+*.env
+
+# Docker & Cloudflare Tunneling (Local execution files)
+.cloudflared/
+credentials.json
+cert.pem
+cloudflare.token
+docker-compose.tunnel.yml
+docker-compose.local.yml
+docker-compose.override.yml
+*.token
+*.tunnel
+cloudflared.log
