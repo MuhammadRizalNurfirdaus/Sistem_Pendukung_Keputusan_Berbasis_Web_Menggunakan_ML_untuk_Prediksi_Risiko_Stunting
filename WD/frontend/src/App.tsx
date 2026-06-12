@@ -290,20 +290,33 @@ function App() {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'active' : ''}`}>
         {/* Brand Logo */}
-        <div style={{ marginBottom: '2.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-            <div className="brand-logo-container">
-              <img 
-                src={logo} 
-                alt="Logo" 
-                className="brand-logo-interactive brand-logo-sidebar"
-              />
-            </div>
-            <div>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0, whiteSpace: 'nowrap' }}>
-                Pantau Stunting Balita
-              </h2>
-            </div>
+        <div style={{ 
+          marginBottom: '2rem',
+          padding: '0 4px 1.25rem 4px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          borderBottom: '1px solid var(--border-color)'
+        }}>
+          <div className="brand-logo-container">
+            <img 
+              src={logo} 
+              alt="Logo" 
+              className="brand-logo-interactive brand-logo-sidebar"
+            />
+          </div>
+          <div>
+            <h2 style={{ 
+              fontSize: '1.05rem', 
+              fontWeight: 700, 
+              letterSpacing: '-0.015em', 
+              margin: 0, 
+              color: 'var(--text-primary)',
+              lineHeight: 1.2,
+              whiteSpace: 'nowrap'
+            }}>
+              Pantau Stunting Balita
+            </h2>
           </div>
         </div>
 

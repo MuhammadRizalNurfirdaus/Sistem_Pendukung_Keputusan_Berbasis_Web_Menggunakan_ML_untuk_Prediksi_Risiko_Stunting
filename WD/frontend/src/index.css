@@ -591,17 +591,17 @@ body {
   justify-content: center;
   border-radius: 50%;
   background: white;
-  padding: 3px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12), 0 0 0 2px rgba(236, 72, 153, 0.15);
-  transition: transform 0.35s cubic-bezier(.22,1,.36,1), box-shadow 0.35s ease, background 0.3s ease;
+  padding: 2px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08), 0 0 0 1.5px rgba(236, 72, 153, 0.12);
+  transition: transform 0.3s cubic-bezier(.22,1,.36,1), box-shadow 0.3s ease;
   cursor: pointer;
   position: relative;
   flex-shrink: 0;
 }
 
 .brand-logo-container:hover {
-  transform: scale(1.10) rotate(3deg);
-  box-shadow: 0 6px 24px rgba(236, 72, 153, 0.35), 0 0 0 3px rgba(236, 72, 153, 0.25);
+  transform: scale(1.08) rotate(3deg);
+  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.25), 0 0 0 2.5px rgba(236, 72, 153, 0.2);
 }
 
 .brand-logo-container:active {
@@ -613,12 +613,8 @@ body {
   display: block;
   border-radius: 50%;
   object-fit: contain;
-  transition: transform 0.35s cubic-bezier(.22,1,.36,1), filter 0.3s ease;
+  transition: transform 0.3s cubic-bezier(.22,1,.36,1);
   cursor: pointer;
-}
-
-.brand-logo-interactive:hover {
-  transform: scale(1.05);
 }
 
 /* Light theme */
@@ -628,51 +624,51 @@ body {
 
 /* Dark theme container glow */
 [data-theme="dark"] .brand-logo-container {
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   box-shadow:
-    0 0 20px rgba(236, 72, 153, 0.5),
-    0 0 40px rgba(236, 72, 153, 0.25),
-    0 0 0 2px rgba(236, 72, 153, 0.35);
+    0 0 14px rgba(236, 72, 153, 0.45),
+    0 0 28px rgba(236, 72, 153, 0.2),
+    0 0 0 1.5px rgba(236, 72, 153, 0.3);
   animation: logo-glow-pulse 3s ease-in-out infinite;
 }
 
 [data-theme="dark"] .brand-logo-container:hover {
   box-shadow:
-    0 0 30px rgba(236, 72, 153, 0.7),
-    0 0 60px rgba(236, 72, 153, 0.35),
-    0 0 0 3px rgba(236, 72, 153, 0.5);
+    0 0 20px rgba(236, 72, 153, 0.6),
+    0 0 40px rgba(236, 72, 153, 0.3),
+    0 0 0 2px rgba(236, 72, 153, 0.4);
   animation: none;
 }
 
 @keyframes logo-glow-pulse {
   0%, 100% {
     box-shadow:
-      0 0 20px rgba(236, 72, 153, 0.5),
-      0 0 40px rgba(236, 72, 153, 0.25),
-      0 0 0 2px rgba(236, 72, 153, 0.35);
+      0 0 14px rgba(236, 72, 153, 0.45),
+      0 0 28px rgba(236, 72, 153, 0.2),
+      0 0 0 1.5px rgba(236, 72, 153, 0.3);
   }
   50% {
     box-shadow:
-      0 0 28px rgba(236, 72, 153, 0.65),
-      0 0 50px rgba(236, 72, 153, 0.35),
-      0 0 0 3px rgba(236, 72, 153, 0.45);
+      0 0 20px rgba(236, 72, 153, 0.55),
+      0 0 35px rgba(236, 72, 153, 0.25),
+      0 0 0 2px rgba(236, 72, 153, 0.35);
   }
 }
 
 /* Sidebar Logo Size */
 .brand-logo-sidebar {
-  width: 56px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
 }
 
 /* Mobile Header Logo Size */
 .brand-logo-mobile {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
 }
 
 /* Auth Page Logo Size */
 .brand-logo-auth {
-  width: 120px;
-  height: 120px;
+  width: 90px;
+  height: 90px;
 }
