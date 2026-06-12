@@ -440,7 +440,7 @@ export function AuthPage({ onLogin, apiUrl }: AuthPageProps) {
             padding: 1.5rem;
           }
           .auth-title {
-            font-size: 1.5rem;
+            font-size: 1.35rem;
           }
         }
       `}</style>
