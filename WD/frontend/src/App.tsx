@@ -292,16 +292,13 @@ function App() {
         {/* Brand Logo */}
         <div style={{ marginBottom: '2.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-            <img 
-              src={logo} 
-              alt="Logo" 
-              style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '50%',
-                objectFit: 'contain'
-              }} 
-            />
+            <div className="brand-logo-container">
+              <img 
+                src={logo} 
+                alt="Logo" 
+                className="brand-logo-interactive brand-logo-sidebar"
+              />
+            </div>
             <div>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0, whiteSpace: 'nowrap' }}>
                 Pantau Stunting Balita
@@ -407,7 +404,9 @@ function App() {
           </svg>
         </button>
         <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <img src={logo} alt="Logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+          <div className="brand-logo-container">
+            <img src={logo} alt="Logo" className="brand-logo-interactive brand-logo-mobile" />
+          </div>
           Pantau Stunting Balita
         </span>
         <div style={{ width: '24px' }} />

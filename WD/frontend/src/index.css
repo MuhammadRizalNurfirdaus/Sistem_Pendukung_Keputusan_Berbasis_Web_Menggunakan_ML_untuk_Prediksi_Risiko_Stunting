@@ -583,3 +583,96 @@ body {
     padding: 1.25rem !important;
   }
 }
+
+/* Brand Logo Container */
+.brand-logo-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: white;
+  padding: 3px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12), 0 0 0 2px rgba(236, 72, 153, 0.15);
+  transition: transform 0.35s cubic-bezier(.22,1,.36,1), box-shadow 0.35s ease, background 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.brand-logo-container:hover {
+  transform: scale(1.10) rotate(3deg);
+  box-shadow: 0 6px 24px rgba(236, 72, 153, 0.35), 0 0 0 3px rgba(236, 72, 153, 0.25);
+}
+
+.brand-logo-container:active {
+  transform: scale(0.96);
+}
+
+/* Brand Logo Interactive Styling */
+.brand-logo-interactive {
+  display: block;
+  border-radius: 50%;
+  object-fit: contain;
+  transition: transform 0.35s cubic-bezier(.22,1,.36,1), filter 0.3s ease;
+  cursor: pointer;
+}
+
+.brand-logo-interactive:hover {
+  transform: scale(1.05);
+}
+
+/* Light theme */
+.brand-logo-container {
+  background: white;
+}
+
+/* Dark theme container glow */
+[data-theme="dark"] .brand-logo-container {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 0 20px rgba(236, 72, 153, 0.5),
+    0 0 40px rgba(236, 72, 153, 0.25),
+    0 0 0 2px rgba(236, 72, 153, 0.35);
+  animation: logo-glow-pulse 3s ease-in-out infinite;
+}
+
+[data-theme="dark"] .brand-logo-container:hover {
+  box-shadow:
+    0 0 30px rgba(236, 72, 153, 0.7),
+    0 0 60px rgba(236, 72, 153, 0.35),
+    0 0 0 3px rgba(236, 72, 153, 0.5);
+  animation: none;
+}
+
+@keyframes logo-glow-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 20px rgba(236, 72, 153, 0.5),
+      0 0 40px rgba(236, 72, 153, 0.25),
+      0 0 0 2px rgba(236, 72, 153, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 28px rgba(236, 72, 153, 0.65),
+      0 0 50px rgba(236, 72, 153, 0.35),
+      0 0 0 3px rgba(236, 72, 153, 0.45);
+  }
+}
+
+/* Sidebar Logo Size */
+.brand-logo-sidebar {
+  width: 56px;
+  height: 56px;
+}
+
+/* Mobile Header Logo Size */
+.brand-logo-mobile {
+  width: 36px;
+  height: 36px;
+}
+
+/* Auth Page Logo Size */
+.brand-logo-auth {
+  width: 120px;
+  height: 120px;
+}

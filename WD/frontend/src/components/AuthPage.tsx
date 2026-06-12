@@ -58,8 +58,12 @@ export function AuthPage({ onLogin, apiUrl }: AuthPageProps) {
       <div className="auth-container fade-in">
         {/* Brand Header */}
         <div className="auth-brand">
-          <div className="auth-logo" style={{ background: 'none', boxShadow: 'none', width: 'auto', height: 'auto', display: 'inline-flex', animation: 'none', marginBottom: '0.75rem' }}>
-            <img src={logo} alt="Logo" style={{ width: '96px', height: '96px', objectFit: 'contain' }} />
+          <div className="brand-logo-container" style={{ marginBottom: '0.75rem' }}>
+            <img 
+              src={logo} 
+              alt="Logo" 
+              className="brand-logo-interactive brand-logo-auth" 
+            />
           </div>
           <h1 className="auth-title">Pantau Stunting Balita</h1>
           <p className="auth-subtitle">Sistem Pendukung Keputusan Berbasis Web</p>
