@@ -215,6 +215,15 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
           return;
         }
 
+        // Periksa jika proyeksi aktif dan terdapat anak di bawah 3 bulan
+        if (aktifkanProyeksi) {
+          const adaAnakKurangDari3Bulan = parsedRows.some(child => child.umur < 3);
+          if (adaAnakKurangDari3Bulan) {
+            alert("Terdapat balita dengan usia di bawah 3 bulan di dalam berkas Excel. Proyeksi masa depan dinonaktifkan secara otomatis karena minimal usia untuk proyeksi adalah 3 bulan.");
+            setAktifkanProyeksi(false);
+          }
+        }
+
         setExcelData(parsedRows);
       } catch (err: any) {
         setExcelError('Gagal memproses berkas Excel. Pastikan format berkas valid.');
@@ -258,6 +267,11 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
       const targetVal = parseFloat(targetBulanExcel);
       if (isNaN(targetVal) || targetVal < 1 || targetVal > 3) {
         setBulkError('Target proyeksi harus antara 1 sampai 3 bulan');
+        return;
+      }
+      const adaAnakKurangDari3Bulan = excelData.some(child => child.umur < 3);
+      if (adaAnakKurangDari3Bulan) {
+        setBulkError('Proyeksi tidak dapat dijalankan karena terdapat balita berusia di bawah 3 bulan.');
         return;
       }
     }
@@ -873,7 +887,17 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, onNavigate, apiUrl
                   id="input-proyeksi-excel"
                   type="checkbox" 
                   checked={aktifkanProyeksi} 
-                  onChange={e => setAktifkanProyeksi(e.target.checked)}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    if (checked && excelData.length > 0) {
+                      const adaAnakKurangDari3Bulan = excelData.some(child => child.umur < 3);
+                      if (adaAnakKurangDari3Bulan) {
+                        alert("Maaf, proyeksi masa depan massal tidak dapat diaktifkan karena terdapat balita dengan usia di bawah 3 bulan. Minimal usia balita untuk proyeksi adalah 3 bulan.");
+                        return;
+                      }
+                    }
+                    setAktifkanProyeksi(checked);
+                  }}
                   style={{ width: '20px', height: '20px', accentColor: 'var(--accent-blue)', cursor: 'pointer' }}
                 />
               </div>
