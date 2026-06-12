@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import logo from '../assets/logo.png';
 
 interface AuthPageProps {
   onLogin: (user: { id: string; username: string; full_name: string; role: string }) => void;
@@ -58,9 +59,9 @@ export function AuthPage({ onLogin, apiUrl }: AuthPageProps) {
         {/* Brand Header */}
         <div className="auth-brand">
           <div className="auth-logo">
-            <span className="auth-logo-icon">🌱</span>
+            <img src={logo} alt="Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
           </div>
-          <h1 className="auth-title">Pantau Stunting</h1>
+          <h1 className="auth-title">Pantau Stunting Balita</h1>
           <p className="auth-subtitle">Sistem Pendukung Keputusan Berbasis Web</p>
         </div>
 

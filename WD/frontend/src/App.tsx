@@ -7,6 +7,7 @@ import { Education } from './components/Education';
 import { AuthPage } from './components/AuthPage';
 import { ChildrenList } from './components/ChildrenList';
 import { ChildDetail } from './components/ChildDetail';
+import logo from './assets/logo.png';
 
 const getApiUrl = () => {
   const { hostname } = window.location;
@@ -291,26 +292,21 @@ function App() {
         {/* Brand Logo */}
         <div style={{ marginBottom: '2.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-green))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.25rem',
-              color: '#fff',
-              fontWeight: 800,
-              boxShadow: 'var(--shadow-glow)'
-            }}>
-              🌱
-            </div>
+            <img 
+              src={logo} 
+              alt="Logo" 
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: 'var(--radius-md)',
+                objectFit: 'contain',
+                boxShadow: 'var(--shadow-glow)'
+              }} 
+            />
             <div>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-                Pantau Stunting
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0, whiteSpace: 'nowrap' }}>
+                Pantau Stunting Balita
               </h2>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>Balita Indonesia</span>
             </div>
           </div>
         </div>
@@ -411,7 +407,10 @@ function App() {
             <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
           </svg>
         </button>
-        <span style={{ fontWeight: 700 }}>🌱 Pantau Stunting</span>
+        <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img src={logo} alt="Logo" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+          Pantau Stunting Balita
+        </span>
         <div style={{ width: '24px' }} />
       </div>
 
