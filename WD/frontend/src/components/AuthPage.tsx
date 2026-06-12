@@ -59,7 +59,7 @@ export function AuthPage({ onLogin, apiUrl }: AuthPageProps) {
         <div className="auth-brand">
           <div className="brand-logo-container" style={{ marginBottom: '0.75rem' }}>
             <img 
-              src="/logo.png" 
+              src="/logo.png?v=2" 
               alt="Logo" 
               className="brand-logo-interactive brand-logo-auth" 
             />

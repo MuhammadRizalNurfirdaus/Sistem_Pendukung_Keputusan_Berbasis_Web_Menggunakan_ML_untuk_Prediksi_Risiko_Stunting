@@ -299,7 +299,7 @@ function App() {
         }}>
           <div className="brand-logo-container">
             <img 
-              src="/logo.png" 
+              src="/logo.png?v=2" 
               alt="Logo" 
               className="brand-logo-interactive brand-logo-sidebar"
             />
@@ -425,7 +425,7 @@ function App() {
           whiteSpace: 'nowrap'
         }}>
           <div className="brand-logo-container">
-            <img src="/logo.png" alt="Logo" className="brand-logo-interactive brand-logo-mobile" />
+            <img src="/logo.png?v=2" alt="Logo" className="brand-logo-interactive brand-logo-mobile" />
           </div>
           Pantau Stunting Balita
         </span>
