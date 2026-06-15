@@ -108,6 +108,7 @@ function App() {
   const [activeResult, setActiveResult] = useState<Prediction | null>(null);
   const [selectedChildDetail, setSelectedChildDetail] = useState<{id: string, nama: string, jenisKelamin: 'L' | 'P'} | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
   });
@@ -117,6 +118,11 @@ function App() {
   };
 
   const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutModal(false);
     setAuthUser(null);
     localStorage.removeItem('auth_user');
     setActiveResult(null);
@@ -481,6 +487,73 @@ function App() {
       </main>
 
       {themeToggleNode}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(9, 12, 19, 0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+        }}>
+          <div className="glass-panel" style={{
+            width: '90%',
+            maxWidth: '400px',
+            padding: '2rem',
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-lg)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: 'var(--radius-full)',
+              background: 'var(--accent-coral-bg)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.25rem auto',
+              fontSize: '1.75rem'
+            }}>
+              👋
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>Yakin Ingin Keluar?</h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1.75rem' }}>
+              Anda akan keluar dari akun <strong>{authUser.username}</strong>. Pastikan semua pekerjaan sudah tersimpan sebelum melanjutkan.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="btn btn-secondary"
+                style={{ minWidth: '120px', fontWeight: 700 }}
+              >
+                Batal
+              </button>
+              <button
+                onClick={confirmLogout}
+                className="btn"
+                style={{
+                  minWidth: '120px',
+                  fontWeight: 700,
+                  background: 'var(--accent-coral)',
+                  color: '#ffffff',
+                  border: 'none'
+                }}
+              >
+                Ya, Keluar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Extra responsive styles */}
       <style>{`
