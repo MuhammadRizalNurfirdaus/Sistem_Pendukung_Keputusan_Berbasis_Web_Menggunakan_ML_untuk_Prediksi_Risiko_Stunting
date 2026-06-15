@@ -266,7 +266,20 @@ Setelah folder model ter-copy ke VPS:
 
 ## 📅 Riwayat Versi & Log Perubahan (Changelog)
 
-### v2.4.0 (Juni 2026) — Perbaikan Pemuatan Model & Penyelarasan API [Terbaru]
+### v2.5.0 (Juni 2026) — Pembaruan Identitas Brand, Modal Konfirmasi, & Optimalisasi Favicon/Logo [Terbaru]
+- **Rebranding & Penyelarasan Judul**: Mengubah judul aplikasi dari "Pantau Stunting Balita" menjadi "Prediksi Stunting Balita" pada halaman autentikasi (AuthPage) dan navigasi aplikasi (App) untuk menyelaraskan dengan tujuan utama prediksi berbasis Machine Learning.
+- **Pembaruan Logo & Favicon Baru**: Memperbarui aset `logo.png` dengan rasio/ukuran lebih pas (tanpa margin transparan), menambahkan web app manifest (`site.webmanifest`), ikon berukuran 192x192 & 512x512, serta format favicon baru (`favicon.ico`, `favicon.svg`, `favicon-32x32.png`, `favicon-96x96.png`).
+- **Penyempurnaan UI/UX & Animasi**:
+  - Memperbesar ukuran logo pada sidebar (72px), header mobile (44px), dan halaman login (180px).
+  - Menambahkan animasi denyut cahaya biru lembut (`logo-glow-pulse-light`) pada logo di light mode serta efek hover transisi yang halus.
+  - Menyelaraskan teks tabel balita ("Jml Periksa" -> "Jumlah Periksa") dan pemusatan kolom aksi.
+- **Fitur Baru & Konfirmasi Pengguna**:
+  - Menambahkan modal konfirmasi sebelum pengguna keluar (logout).
+  - Mengubah teks tombol konfirmasi hapus data dari "Ya, Hapus Semua" menjadi lebih ramah pengguna: "Hapus saja".
+  - Menghapus tombol pendaftaran mandiri dari daftar balita untuk membatasi akses registrasi.
+- **Pembaruan Modul Machine Learning**: Memperbarui Jupyter Notebooks (`generate_dummy_data.ipynb` dan `modelling_experiment.ipynb`) di folder ML untuk sinkronisasi eksperimen data dummy dan pemodelan terbaru.
+
+### v2.4.0 (Juni 2026) — Perbaikan Pemuatan Model & Penyelarasan API
 - **Robust Model Loading**: Memperbaiki logika `load_model` untuk menyaring secara dinamis subdirektori model di folder `models/` agar hanya memuat model yang melatih 11 fitur lengkap (termasuk jangkar medis `Z_Score_Akhir`), menghindari kesalahan akibat modification time yang identik.
 - **Native predict_proba()**: Mengubah framework pemuatan model dari `mlflow.pyfunc` menjadi `mlflow.sklearn` untuk mengembalikan probabilitas prediksi stunting secara akurat di masa depan.
 - **Penyelarasan API & Perbaikan Typo**: Menyempurnakan output endpoint `/api/predict/bulk` serta memperbaiki bug variabel typo `df_fitur` -> `df_future` di endpoint `/api/predict/bulk-future`.
