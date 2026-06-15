@@ -598,8 +598,10 @@ body {
   background: #ffffff;
   padding: 3px;
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.06),
-    0 0 0 1.5px rgba(91, 164, 230, 0.15);
+    0 0 12px rgba(91, 164, 230, 0.3),
+    0 0 24px rgba(91, 164, 230, 0.1),
+    0 0 0 1.5px rgba(91, 164, 230, 0.2);
+  animation: logo-glow-pulse-light 3s ease-in-out infinite;
   transition: transform 0.3s cubic-bezier(.22,1,.36,1), box-shadow 0.3s ease;
   cursor: pointer;
   position: relative;
@@ -609,12 +611,29 @@ body {
 .brand-logo-container:hover {
   transform: scale(1.08) rotate(3deg);
   box-shadow:
-    0 4px 16px rgba(91, 164, 230, 0.25),
-    0 0 0 2.5px rgba(91, 164, 230, 0.2);
+    0 0 20px rgba(91, 164, 230, 0.4),
+    0 0 36px rgba(91, 164, 230, 0.15),
+    0 0 0 2px rgba(91, 164, 230, 0.25);
+  animation: none;
 }
 
 .brand-logo-container:active {
   transform: scale(0.96);
+}
+
+@keyframes logo-glow-pulse-light {
+  0%, 100% {
+    box-shadow:
+      0 0 12px rgba(91, 164, 230, 0.3),
+      0 0 24px rgba(91, 164, 230, 0.1),
+      0 0 0 1.5px rgba(91, 164, 230, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 20px rgba(91, 164, 230, 0.4),
+      0 0 32px rgba(91, 164, 230, 0.15),
+      0 0 0 2px rgba(91, 164, 230, 0.25);
+  }
 }
 
 /* Brand Logo Interactive Styling */
@@ -661,18 +680,18 @@ body {
 
 /* Sidebar Logo Size */
 .brand-logo-sidebar {
-  width: 50px;
-  height: 50px;
+  width: 72px;
+  height: 72px;
 }
 
 /* Mobile Header Logo Size */
 .brand-logo-mobile {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
 }
 
 /* Auth Page Logo Size */
 .brand-logo-auth {
-  width: 140px;
-  height: 140px;
+  width: 180px;
+  height: 180px;
 }

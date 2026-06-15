@@ -64,7 +64,7 @@ export function AuthPage({ onLogin, apiUrl }: AuthPageProps) {
               className="brand-logo-interactive brand-logo-auth" 
             />
           </div>
-          <h1 className="auth-title">Pantau Stunting Balita</h1>
+          <h1 className="auth-title">Prediksi Stunting Balita</h1>
           <p className="auth-subtitle">Sistem Pendukung Keputusan Berbasis Web</p>
         </div>
 

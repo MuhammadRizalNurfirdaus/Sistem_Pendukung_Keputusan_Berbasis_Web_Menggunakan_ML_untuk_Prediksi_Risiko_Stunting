@@ -320,7 +320,7 @@ function App() {
               lineHeight: 1.2,
               whiteSpace: 'nowrap'
             }}>
-              Pantau Stunting Balita
+              Prediksi Stunting Balita
             </h2>
           </div>
         </div>
@@ -433,7 +433,7 @@ function App() {
           <div className="brand-logo-container">
             <img src="/logo.png?v=2" alt="Logo" className="brand-logo-interactive brand-logo-mobile" />
           </div>
-          Pantau Stunting Balita
+          Prediksi Stunting Balita
         </span>
         <div style={{ width: '24px' }} />
       </div>

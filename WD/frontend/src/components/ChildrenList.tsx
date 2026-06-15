@@ -224,10 +224,10 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onNavigate, apiUrl }
                   <th style={thStyle}>Nama Balita</th>
                   <th style={thStyle}>L/P</th>
                   <th style={thStyle}>Tanggal Terdaftar</th>
-                  <th style={thStyle}>Jml Periksa</th>
+                  <th style={thStyle}>Jumlah Periksa</th>
                   <th style={thStyle}>Umur Terakhir</th>
                   <th style={thStyle}>Status Terakhir</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Aksi</th>
+                  <th style={{ ...thStyle, textAlign: 'center' }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -280,8 +280,8 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onNavigate, apiUrl }
                           <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Belum diperiksa</span>
                         )}
                       </td>
-                      <td style={{ padding: '14px 8px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <td style={{ padding: '14px 8px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                           <button
                             onClick={() => onNavigate('child-detail', { id: c.id, nama: c.nama, jenisKelamin: c.jenisKelamin })}
                             className="btn btn-secondary"
