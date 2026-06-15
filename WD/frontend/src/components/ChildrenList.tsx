@@ -442,7 +442,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onNavigate, apiUrl }
                 }}
                 disabled={deleting}
               >
-                {deleting ? 'Menghapus...' : 'Ya, Hapus Semua'}
+                {deleting ? 'Menghapus...' : 'Hapus saja'}
               </button>
             </div>
           </div>
