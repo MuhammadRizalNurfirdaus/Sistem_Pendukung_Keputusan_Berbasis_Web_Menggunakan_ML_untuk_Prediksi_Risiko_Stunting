@@ -4,7 +4,7 @@ numpy==2.2.6
 openpyxl==3.1.5
 
 # --- NLP ---
-nltk==3.9.4
+nltk==3.10.0
 
 # --- Machine Learning ---
 scikit-learn==1.8.0
